@@ -1,11 +1,9 @@
-import { AudioLines, UserPlus } from "lucide-react";
+import { AudioLines } from "lucide-react";
 
 const LINKS = [
   { label: "Home", href: "#top" },
   { label: "How it works", href: "#how-it-works" },
   { label: "Practice", href: "#practice" },
-  { label: "Pricing", href: "#pricing" },
-  { label: "Blog", href: "#blog" },
 ];
 
 export function Nav() {
@@ -32,16 +30,9 @@ export function Nav() {
         <div className="flex items-center gap-3">
           <a
             href="#waitlist"
-            className="hidden rounded-full border border-ink-line px-4 py-2 text-sm text-cream transition-colors hover:border-text-muted sm:inline-block"
+            className="inline-flex items-center rounded-full bg-amber px-5 py-2 text-sm font-medium text-ink transition-colors hover:bg-amber-soft"
           >
-            Waitlist
-          </a>
-          <a
-            href="#waitlist"
-            className="inline-flex items-center gap-1.5 rounded-full bg-amber px-4 py-2 text-sm font-medium text-ink transition-colors hover:bg-amber-soft"
-          >
-            <UserPlus className="size-4" strokeWidth={2.25} />
-            Early Adapter
+            Join Waitlist
           </a>
         </div>
       </div>

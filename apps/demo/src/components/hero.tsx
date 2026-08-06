@@ -17,19 +17,19 @@ const CHIPS: Chip[] = [
   {
     icon: <CheckCircle2 className="size-3.5 text-amber" strokeWidth={2.5} />,
     label: "Great energy!",
-    className: "left-[62%] top-[6%] sm:left-[68%]",
+    className: "left-[10%] top-[14%]",
     delay: 0,
   },
   {
     icon: <Gauge className="size-3.5 text-amber" strokeWidth={2.5} />,
     label: "Speak a bit slower",
-    className: "left-[68%] top-[28%] sm:left-[74%]",
+    className: "left-[28%] top-[38%]",
     delay: 1.1,
   },
   {
     icon: <ListTree className="size-3.5 text-amber" strokeWidth={2.5} />,
     label: "Clear structure",
-    className: "left-[64%] top-[50%] sm:left-[70%]",
+    className: "left-[16%] top-[60%]",
     delay: 2.2,
   },
 ];
@@ -63,12 +63,25 @@ function FeedbackChip({ chip }: { chip: Chip }) {
 
 export function Hero() {
   return (
-    <section id="top" className="relative overflow-hidden pt-10 pb-8 sm:pt-14">
-      <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[600px] bg-[radial-gradient(ellipse_at_top,rgba(224,160,84,0.14),transparent_60%)]" />
+    <section id="top" className="relative min-h-[640px] overflow-hidden pt-10 pb-16 sm:pt-14 sm:min-h-[720px]">
+      {/* Full-bleed background photo */}
+      <div className="absolute inset-0 -z-10">
+        <Image
+          src="/background.webp"
+          alt="A person speaking confidently into a laptop during a practice session"
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover"
+        />
+        {/* Left-to-right fade so the headline stays readable over the photo */}
+        <div className="absolute inset-0 bg-gradient-to-r from-ink via-ink/70 to-ink/10" />
+        <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/10 to-ink/40" />
+      </div>
 
-      <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-10 px-6 lg:grid-cols-[1fr_1.15fr] lg:gap-4 lg:px-10">
+      <div className="relative mx-auto max-w-7xl px-6 lg:px-10">
         <motion.div
-          className="relative z-10"
+          className="relative z-10 max-w-lg py-16 sm:py-24"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
@@ -88,45 +101,20 @@ export function Hero() {
               href="#waitlist"
               className="rounded-full bg-amber px-6 py-2.5 text-sm font-medium text-ink transition-colors hover:bg-amber-soft"
             >
-              Early Adopters →
-            </a>
-            <a
-              href="#waitlist"
-              className="rounded-full border border-ink-line px-6 py-2.5 text-sm font-medium text-cream transition-colors hover:border-text-muted"
-            >
-              Waitlist
+              Join Waitlist →
             </a>
           </div>
         </motion.div>
 
-        <motion.div
-          className="relative mx-auto aspect-[16/11] w-full max-w-xl lg:-mr-6"
-          initial={{ opacity: 0, scale: 0.97 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1], delay: 0.15 }}
-        >
-          <div className="absolute inset-0 overflow-hidden rounded-2xl">
-            <Image
-              src="/background.webp"
-              alt="A person speaking confidently into a laptop during a practice session"
-              fill
-              priority
-              sizes="(min-width: 1024px) 576px, 90vw"
-              className="object-cover"
-            />
-            <div className="absolute inset-0 bg-gradient-to-r from-ink/10 via-transparent to-ink/25" />
-            <div className="absolute inset-0 bg-gradient-to-t from-ink/50 via-transparent to-transparent" />
-            <div className="pointer-events-none absolute inset-0 [mask-image:linear-gradient(to_right,black_75%,transparent_100%)] bg-ink/0" />
-          </div>
-
+        <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-[46%] lg:block">
           {CHIPS.map((chip) => (
             <FeedbackChip key={chip.label} chip={chip} />
           ))}
-        </motion.div>
+        </div>
       </div>
 
       <Reveal>
-        <p className="mx-auto mt-10 max-w-xl px-6 text-center font-display text-sm italic text-amber-soft/80">
+        <p className="relative mx-auto mt-4 max-w-xl px-6 text-center font-display text-sm italic text-amber-soft/80">
           Communication opens doors. Confidence keeps them open.
         </p>
       </Reveal>
