@@ -31,7 +31,7 @@ const MODES = [
 
 export function PracticeModes() {
   return (
-    <section id="practice" className="bg-ink py-24">
+    <section id="practice" className="bg-ink py-20">
       <div className="mx-auto max-w-7xl px-6 lg:px-10">
         <Reveal className="text-center">
           <h2 className="font-display text-4xl tracking-tight text-cream sm:text-[2.75rem]">

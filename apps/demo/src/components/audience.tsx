@@ -11,7 +11,7 @@ const AUDIENCE = [
 export function Audience() {
   return (
     <div className="border-t border-ink-line/60">
-      <div className="mx-auto grid max-w-5xl grid-cols-2 gap-y-8 px-6 py-12 sm:grid-cols-3 lg:grid-cols-5 lg:px-10">
+      <div className="mx-auto grid max-w-5xl grid-cols-2 gap-y-8 px-6 py-9 sm:grid-cols-3 lg:grid-cols-5 lg:px-10">
         {AUDIENCE.map(({ icon: Icon, label }) => (
           <div key={label} className="flex flex-col items-center gap-3 text-center">
             <Icon className="size-6 text-text-dim" strokeWidth={1.5} />

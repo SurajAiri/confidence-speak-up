@@ -35,7 +35,7 @@ function Waveform() {
           <span
             key={i}
             className={`w-full rounded-full ${isMarker ? "bg-amber" : "bg-ink-line"}`}
-            style={{ height: `${h}%` }}
+            style={{ height: `${h.toFixed(2)}%` }}
           />
         );
       })}
@@ -48,7 +48,7 @@ export function FeedbackPreview() {
   const [playing, setPlaying] = useState(false);
 
   return (
-    <section id="how-it-works" className="bg-ink py-24">
+    <section id="how-it-works" className="bg-ink py-20">
       <div className="mx-auto max-w-6xl px-6 lg:px-10">
         <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-[0.85fr_1.15fr]">
           <Reveal>
