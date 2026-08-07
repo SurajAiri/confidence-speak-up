@@ -16,7 +16,7 @@ export function FinalCta() {
   };
 
   return (
-    <section id="pricing" className="py-24 md:py-[120px] bg-surface relative">
+    <section id="waitlist" className="py-24 md:py-[120px] bg-surface relative">
       <div className="max-w-[1280px] mx-auto px-5 md:px-20">
         <Reveal variants={{
           hidden: { opacity: 0, y: 40, scale: 0.97 },

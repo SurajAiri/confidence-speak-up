@@ -2,15 +2,20 @@
 
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { AudioLines, Menu, X } from "lucide-react";
+import { AudioLines, Menu, X, ArrowRight } from "lucide-react";
 
 const NAV_LINKS = [
   { label: "Home", href: "#home", active: true },
   { label: "How it works", href: "#how-it-works" },
   { label: "Practice", href: "#practice" },
-  { label: "Pricing", href: "#pricing" },
-  { label: "Blog", href: "#blog" },
 ];
+
+function scrollToWaitlist() {
+  const el = document.getElementById("waitlist");
+  if (el) {
+    el.scrollIntoView({ behavior: "smooth" });
+  }
+}
 
 export function Navbar() {
   const [scrolled, setScrolled] = useState(false);
@@ -68,11 +73,13 @@ export function Navbar() {
 
         <div className="hidden md:flex items-center gap-4">
           <motion.button
+            onClick={scrollToWaitlist}
             whileHover={{ scale: 1.04 }}
             whileTap={{ scale: 0.97 }}
-            className="bg-primary text-on-primary text-sm font-bold rounded-full px-6 py-2.5 whitespace-nowrap"
+            className="bg-primary text-on-primary text-sm font-bold rounded-full px-6 py-2.5 whitespace-nowrap flex items-center gap-2"
           >
-            Waitlist
+            Join Waitlist
+            <ArrowRight size={14} strokeWidth={2.5} />
           </motion.button>
         </div>
 
@@ -107,8 +114,15 @@ export function Navbar() {
                   {link.label}
                 </a>
               ))}
-              <button className="mt-4 bg-primary text-on-primary text-sm font-bold rounded-full px-6 py-3 w-full">
-                Waitlist
+              <button
+                onClick={() => {
+                  setOpen(false);
+                  scrollToWaitlist();
+                }}
+                className="mt-4 bg-primary text-on-primary text-sm font-bold rounded-full px-6 py-3 w-full flex items-center justify-center gap-2"
+              >
+                Join Waitlist
+                <ArrowRight size={14} strokeWidth={2.5} />
               </button>
             </div>
           </motion.div>

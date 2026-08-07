@@ -16,54 +16,78 @@ function LinkedinIcon() {
   );
 }
 
+const NAV_LINKS = [
+  { label: "Home", href: "#home" },
+  { label: "How it works", href: "#how-it-works" },
+  { label: "Practice", href: "#practice" },
+  { label: "Waitlist", href: "#waitlist" },
+];
+
 export function Footer() {
   return (
     <footer className="w-full py-14 md:py-16 bg-surface-container-lowest border-t border-white/5">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-10 md:gap-6 px-5 md:px-20 max-w-[1280px] mx-auto">
-        <div className="md:col-span-1">
-          <div className="font-display text-xl text-on-surface mb-4 flex items-center gap-2">
-            <AudioLines className="text-primary" size={18} />
-            Voxem
+      <div className="max-w-[1280px] mx-auto px-5 md:px-20">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-10 md:gap-6">
+          <div className="md:col-span-1">
+            <div className="font-display text-xl text-on-surface mb-4 flex items-center gap-2">
+              <AudioLines className="text-primary" size={18} />
+              Voxem
+            </div>
+            <p className="font-sans text-xs text-on-surface-variant leading-relaxed">
+              © 2026 Voxem AI. Refined rhetoric for the modern leader.
+            </p>
           </div>
-          <p className="font-sans text-xs text-on-surface-variant leading-relaxed">
-            © 2026 Voxem AI. Refined rhetoric for the modern leader.
-          </p>
-        </div>
-        <div className="flex flex-col gap-2">
-          <a
-            href="#"
-            className="font-sans text-xs text-on-surface-variant hover:text-primary-fixed transition-colors opacity-80 hover:opacity-100 w-fit"
-          >
-            Privacy Policy
-          </a>
-          <a
-            href="#"
-            className="font-sans text-xs text-on-surface-variant hover:text-primary-fixed transition-colors opacity-80 hover:opacity-100 w-fit"
-          >
-            Terms of Service
-          </a>
-        </div>
-        <div className="flex flex-col gap-2">
-          <a
-            href="#"
-            className="font-sans text-xs text-on-surface-variant hover:text-primary-fixed transition-colors opacity-80 hover:opacity-100 w-fit"
-          >
-            Contact Us
-          </a>
-        </div>
-        <div className="flex flex-col gap-3">
-          <a
-            href="#"
-            className="font-sans text-xs text-on-surface-variant hover:text-primary-fixed transition-colors opacity-80 hover:opacity-100 flex items-center gap-2 w-fit"
-          >
-            <TwitterIcon /> Twitter
-          </a>
-          <a
-            href="#"
-            className="font-sans text-xs text-on-surface-variant hover:text-primary-fixed transition-colors opacity-80 hover:opacity-100 flex items-center gap-2 w-fit"
-          >
-            <LinkedinIcon /> LinkedIn
-          </a>
+
+          <div className="flex flex-col gap-2">
+            <p className="font-sans text-xs font-semibold text-on-surface mb-1 tracking-wide uppercase">Navigate</p>
+            {NAV_LINKS.map((link) => (
+              <a
+                key={link.label}
+                href={link.href}
+                className="font-sans text-xs text-on-surface-variant hover:text-primary-fixed transition-colors opacity-80 hover:opacity-100 w-fit"
+              >
+                {link.label}
+              </a>
+            ))}
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <p className="font-sans text-xs font-semibold text-on-surface mb-1 tracking-wide uppercase">Legal</p>
+            <a
+              href="#"
+              className="font-sans text-xs text-on-surface-variant hover:text-primary-fixed transition-colors opacity-80 hover:opacity-100 w-fit"
+            >
+              Privacy Policy
+            </a>
+            <a
+              href="#"
+              className="font-sans text-xs text-on-surface-variant hover:text-primary-fixed transition-colors opacity-80 hover:opacity-100 w-fit"
+            >
+              Terms of Service
+            </a>
+            <a
+              href="#"
+              className="font-sans text-xs text-on-surface-variant hover:text-primary-fixed transition-colors opacity-80 hover:opacity-100 w-fit"
+            >
+              Contact Us
+            </a>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <p className="font-sans text-xs font-semibold text-on-surface mb-1 tracking-wide uppercase">Follow us</p>
+            <a
+              href="#"
+              className="font-sans text-xs text-on-surface-variant hover:text-primary-fixed transition-colors opacity-80 hover:opacity-100 flex items-center gap-2 w-fit"
+            >
+              <TwitterIcon /> Twitter
+            </a>
+            <a
+              href="#"
+              className="font-sans text-xs text-on-surface-variant hover:text-primary-fixed transition-colors opacity-80 hover:opacity-100 flex items-center gap-2 w-fit"
+            >
+              <LinkedinIcon /> LinkedIn
+            </a>
+          </div>
         </div>
       </div>
     </footer>
