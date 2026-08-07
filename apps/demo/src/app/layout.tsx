@@ -1,37 +1,26 @@
 import type { Metadata } from "next";
-import { Inter, Playfair_Display } from "next/font/google";
+import "@fontsource/libre-caslon-text/400.css";
+import "@fontsource/libre-caslon-text/400-italic.css";
+import "@fontsource/libre-caslon-text/700.css";
+import "@fontsource-variable/hanken-grotesk/wght.css";
 import "./globals.css";
-
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
-});
-
-const playfair = Playfair_Display({
-  variable: "--font-playfair",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  style: ["normal", "italic"],
-});
 
 export const metadata: Metadata = {
   title: "Voxem — Speak Confidently, In Any Moment",
   description:
-    "AI-powered feedback that helps you speak clearly, confidently and with impact in any situation.",
+    "AI-powered feedback that helps you speak clearly, confidently and with impact in any situation. Practice interviews, debates, and everyday conversations with Voxem.",
 };
 
 export default function RootLayout({
   children,
-}: {
+}: Readonly<{
   children: React.ReactNode;
-}) {
+}>) {
   return (
-    <html
-      lang="en"
-      className={`${inter.variable} ${playfair.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col">{children}</body>
+    <html lang="en" className="h-full">
+      <body className="min-h-full bg-surface text-on-surface antialiased selection:bg-primary selection:text-on-primary">
+        {children}
+      </body>
     </html>
   );
 }
