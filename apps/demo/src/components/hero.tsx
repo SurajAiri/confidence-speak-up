@@ -22,38 +22,71 @@ import { useEffect, useRef, useState, useCallback } from "react";
 
 const AUDIENCE = [
   { icon: GraduationCap, label: "Students" },
-  { icon: Briefcase,     label: "Professionals" },
-  { icon: Radar,         label: "Job Seekers" },
-  { icon: FileEdit,      label: "Creators" },
-  { icon: Flag,          label: "Leaders" },
+  { icon: Briefcase, label: "Professionals" },
+  { icon: Radar, label: "Job Seekers" },
+  { icon: FileEdit, label: "Creators" },
+  { icon: Flag, label: "Leaders" },
 ];
 
 const FLOATING_TAGS = [
-  { icon: Gauge,         label: "Pace too fast — slowing down helps comprehension",        color: "text-primary"   },
-  { icon: AudioWaveform, label: "Tone shift detected — try a warmer register here",        color: "text-secondary" },
-  { icon: Mic,           label: "3 filler words in 10 seconds — practice pausing instead", color: "text-primary"   },
-  { icon: List,          label: "Structure unclear — lead with your main point first",      color: "text-secondary" },
-  { icon: BarChart3,     label: "Confidence score: 72% — eye contact boosts this",         color: "text-primary"   },
-  { icon: Brain,         label: "Strong argument — reinforce with a concrete example",      color: "text-secondary" },
-  { icon: Zap,           label: "Energy dipped mid-sentence — sustain your emphasis",       color: "text-primary"   },
+  {
+    icon: Gauge,
+    label: "Pace too fast — slowing down helps comprehension",
+    color: "text-primary",
+  },
+  {
+    icon: AudioWaveform,
+    label: "Tone shift detected — try a warmer register here",
+    color: "text-secondary",
+  },
+  {
+    icon: Mic,
+    label: "3 filler words in 10 seconds — practice pausing instead",
+    color: "text-primary",
+  },
+  {
+    icon: List,
+    label: "Structure unclear — lead with your main point first",
+    color: "text-secondary",
+  },
+  {
+    icon: BarChart3,
+    label: "Confidence score: 72% — eye contact boosts this",
+    color: "text-primary",
+  },
+  {
+    icon: Brain,
+    label: "Strong argument — reinforce with a concrete example",
+    color: "text-secondary",
+  },
+  {
+    icon: Zap,
+    label: "Energy dipped mid-sentence — sustain your emphasis",
+    color: "text-primary",
+  },
 ];
 
 // Each tag's own loop: travel for TRAVEL_MS, then stay hidden for GAP_MS, repeat.
 // STAGGER_MS is the time offset between consecutive tags launching.
-// With TRAVEL_MS=4800, GAP_MS=9400 → full period=14200ms, stagger=2100ms
-// → at any moment ~2–3 tags are visible simultaneously.
-const TRAVEL_MS  = 4800;
-const GAP_MS     = 9400;   // invisible hold before next pass
-const PERIOD_MS  = TRAVEL_MS + GAP_MS;   // each tag's full loop = 14200ms
-const STAGGER_MS = 2100;   // offset between consecutive tags
+// With TRAVEL_MS=7200, GAP_MS=8700 → full period=15900ms, stagger=2400ms
+// → at any moment ~3 tags are visible simultaneously, drifting at a
+// comfortable, readable pace (faster than the previous 9500ms pass,
+// still well short of the original 4800ms rush).
+const TRAVEL_MS = 7200;
+const GAP_MS = 8700; // invisible hold before next pass
+const PERIOD_MS = TRAVEL_MS + GAP_MS; // each tag's full loop = 15900ms
+const STAGGER_MS = 2400; // offset between consecutive tags
 
 function scrollToWaitlist() {
   const el = document.getElementById("waitlist");
   if (el) el.scrollIntoView({ behavior: "smooth" });
 }
 
+// Gentle sine ease-in-out: smooth, evenly-paced glide with no sharp
+// acceleration through the middle (unlike a cubic ease, which snaps
+// through the midpoint and reads as "fast").
 function easeInOut(t: number): number {
-  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  return -(Math.cos(Math.PI * t) - 1) / 2;
 }
 
 function quadBezier(t: number, p0: number, p1: number, p2: number): number {
@@ -72,13 +105,22 @@ function quadBezier(t: number, p0: number, p1: number, p2: number): number {
  * i*STAGGER_MS after the previous one, creating a staggered stream
  * where 2-3 are always visible at once.
  *
- * Arc direction: bottom-left → bows RIGHT → top-right
- *   P0 (start)  : x = cW*0.05,  y = cH*0.90  (bottom, slightly left)
- *   P1 (control): x = cW*1.15,  y = cH*0.40  (far right → rightward bow)
- *   P2 (end)    : x = cW*0.60,  y = cH*0.04  (upper right, vanishes)
+ * The panel is a strip anchored to the bottom-right of the section,
+ * sized and positioned to sit over the laptop in the background photo
+ * and reach up roughly to head height (see the Hero component below
+ * for the exact measurements) — tall enough that the same 0.75→0.15
+ * vertical fractions below now translate to real spacing between
+ * cards instead of a cramped, overlapping stack.
  *
- * The rightShift prop nudges the entire arc right so cards sit
- * comfortably within the panel without clipping left.
+ * Arc direction: near the laptop → bows right → exits upper-right,
+ * all while staying inside this panel:
+ *   P0 (start)  : x = cW*0.28,  y = cH*0.75
+ *   P1 (control): x = cW*0.85,  y = cH*0.40
+ *   P2 (end)    : x = cW*0.62,  y = cH*0.15
+ *
+ * These fractions are deliberately inset from all four panel edges by
+ * more than half a card's width/height, so no card is ever clipped by
+ * the panel's overflow-hidden boundary.
  */
 function BezierTag({
   icon: Icon,
@@ -99,60 +141,63 @@ function BezierTag({
   const rafRef = useRef<number>(0);
   const startTsRef = useRef<number | null>(null);
 
-  // Right-shift the whole arc so it sits in the right half of the panel
-  const shift = cW * 0.18;
+  // Bézier control points (rightward parabola). The panel is short and
+  // wide (a strip over the laptop, not a tall column reaching toward
+  // head height), so these fractions stay inset from all four edges
+  // by more than half a card's size — no clipping, no reach upward.
+  const p0x = cW * 0.28; // start: lower-left of the panel, near the laptop
+  const p0y = cH * 0.75;
 
-  // Bézier control points (rightward parabola)
-  const p0x = cW * 0.00 + shift;  // start: bottom, left-of-centre
-  const p0y = cH * 0.92;
+  const p1x = cW * 0.85; // control: rightward bow, inside the panel
+  const p1y = cH * 0.4;
 
-  const p1x = cW * 1.05 + shift;  // control: far right → pulls arc rightward
-  const p1y = cH * 0.42;
-
-  const p2x = cW * 0.42 + shift;  // end: upper-right
-  const p2y = cH * 0.03;
+  const p2x = cW * 0.62; // end: upper-right, still well inside the panel
+  const p2y = cH * 0.15;
 
   const TAG_HALF_W = 132; // half of card width (264/2) for centering
 
-  const tick = useCallback((ts: number) => {
-    if (!divRef.current) return;
+  const tick = useCallback(
+    (ts: number) => {
+      if (!divRef.current) return;
 
-    if (startTsRef.current === null) startTsRef.current = ts;
+      if (startTsRef.current === null) startTsRef.current = ts;
 
-    // Position within this tag's own looping period
-    const elapsed  = ts - startTsRef.current;
-    const cyclePos = elapsed % PERIOD_MS;
+      // Position within this tag's own looping period
+      const elapsed = ts - startTsRef.current;
+      const cyclePos = elapsed % PERIOD_MS;
 
-    let opacity: number;
-    let localT: number;
+      let opacity: number;
+      let localT: number;
 
-    if (cyclePos < TRAVEL_MS) {
-      // Active: travelling along the arc
-      const rawT = cyclePos / TRAVEL_MS;
-      localT = easeInOut(rawT);
+      if (cyclePos < TRAVEL_MS) {
+        // Active: travelling along the arc
+        const rawT = cyclePos / TRAVEL_MS;
+        localT = easeInOut(rawT);
 
-      // Smooth fade in (first 10%) → fully visible → fade out (last 12%)
-      if (rawT < 0.10) {
-        opacity = rawT / 0.10;
-      } else if (rawT > 0.88) {
-        opacity = (1 - rawT) / 0.12;
+        // Smooth fade in (first 10%) → fully visible → fade out (last 12%)
+        if (rawT < 0.15) {
+          opacity = rawT / 0.15;
+        } else if (rawT > 0.82) {
+          opacity = (1 - rawT) / 0.18;
+        } else {
+          opacity = 1;
+        }
       } else {
-        opacity = 1;
+        // Hidden: waiting for next loop pass
+        opacity = 0;
+        localT = 0;
       }
-    } else {
-      // Hidden: waiting for next loop pass
-      opacity = 0;
-      localT  = 0;
-    }
 
-    const x = quadBezier(localT, p0x, p1x, p2x);
-    const y = quadBezier(localT, p0y, p1y, p2y);
+      const x = quadBezier(localT, p0x, p1x, p2x);
+      const y = quadBezier(localT, p0y, p1y, p2y);
 
-    divRef.current.style.transform = `translate(${x - TAG_HALF_W}px, ${y - 20}px)`;
-    divRef.current.style.opacity   = String(Math.max(0, Math.min(1, opacity)));
+      divRef.current.style.transform = `translate(${x - TAG_HALF_W}px, ${y - 20}px)`;
+      divRef.current.style.opacity = String(Math.max(0, Math.min(1, opacity)));
 
-    rafRef.current = requestAnimationFrame(tick);
-  }, [p0x, p0y, p1x, p1y, p2x, p2y]);
+      rafRef.current = requestAnimationFrame(tick);
+    },
+    [p0x, p0y, p1x, p1y, p2x, p2y],
+  );
 
   useEffect(() => {
     // Prime the start timestamp so this tag is already `launchOffset` ms into
@@ -194,7 +239,10 @@ export function Hero() {
   useEffect(() => {
     const measure = () => {
       if (panelRef.current) {
-        setDims({ w: panelRef.current.offsetWidth, h: panelRef.current.offsetHeight });
+        setDims({
+          w: panelRef.current.offsetWidth,
+          h: panelRef.current.offsetHeight,
+        });
       }
     };
     measure();
@@ -230,9 +278,8 @@ export function Hero() {
 
       <div className="max-w-[1280px] w-full mx-auto px-5 md:px-20 relative z-20">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-
           {/* Left: copy */}
-          <div className="md:col-span-7 flex flex-col justify-center">
+          <div className="md:col-span-7 flex flex-col justify-center relative z-20">
             <motion.h1
               initial={{ opacity: 0, y: 28 }}
               animate={{ opacity: 1, y: 0 }}
@@ -256,8 +303,8 @@ export function Hero() {
               transition={{ duration: 0.9, ease: easePremium, delay: 0.35 }}
               className="font-sans text-base md:text-lg leading-relaxed text-on-surface-variant max-w-lg mb-10"
             >
-              AI-powered feedback that helps you speak clearly, confidently
-              and with impact in any situation.
+              AI-powered feedback that helps you speak clearly, confidently and
+              with impact in any situation.
             </motion.p>
 
             <motion.div
@@ -287,24 +334,47 @@ export function Hero() {
             </motion.p>
           </div>
 
-          {/* Right: staggered Bézier arc tags */}
-          <div
-            ref={panelRef}
-            className="md:col-span-5 hidden md:block relative h-full min-h-[480px] overflow-hidden"
-          >
-            {dims.w > 0 && FLOATING_TAGS.map((tag, i) => (
-              <BezierTag
-                key={tag.label}
-                icon={tag.icon}
-                label={tag.label}
-                color={tag.color}
-                launchOffset={i * STAGGER_MS}
-                cW={dims.w}
-                cH={dims.h}
-              />
-            ))}
-          </div>
+          {/* Right column is left empty — it exists only to keep the
+              copy at md:col-span-7 width. The tag panel below is
+              positioned independently of this grid so it can anchor
+              to the laptop in the background photo, wherever that
+              falls, rather than being boxed into this column's width
+              (which sat further left, over the person's face). */}
+          <div className="md:col-span-5 hidden md:block" aria-hidden="true" />
         </div>
+      </div>
+
+      {/* Floating tags — anchored to the bottom-right of the section,
+          directly over the laptop in the background photo.
+          Measured from the reference screenshot: the laptop sits in
+          roughly the bottom-right ~30% x ~29% of the frame (x: 68–100%,
+          y: 71–100%), the face's chin line is at ~60% down, and the
+          audience bar starts at ~86% down. So the panel is kept short
+          (a percentage of viewport height, not a tall fixed pixel box)
+          and boxed into the strip between the chin and the audience
+          bar — it no longer reaches anywhere near head height. */}
+      <div
+        ref={panelRef}
+        className="hidden md:block absolute z-20 pointer-events-none overflow-hidden"
+        style={{
+          right: "clamp(8px, 2vw, 40px)",
+          bottom: "clamp(110px, 15vh, 170px)",
+          width: "clamp(500px, 32vw, 560px)",
+          height: "clamp(400px, 50vh, 560px)",
+        }}
+      >
+        {dims.w > 0 &&
+          FLOATING_TAGS.map((tag, i) => (
+            <BezierTag
+              key={tag.label}
+              icon={tag.icon}
+              label={tag.label}
+              color={tag.color}
+              launchOffset={i * STAGGER_MS}
+              cW={dims.w}
+              cH={dims.h}
+            />
+          ))}
       </div>
 
       {/* Audience bar */}
@@ -330,14 +400,19 @@ export function Hero() {
             viewport={{ once: true, amount: 0.3 }}
             variants={{
               hidden: {},
-              show: { transition: { staggerChildren: 0.1, delayChildren: 0.3 } },
+              show: {
+                transition: { staggerChildren: 0.1, delayChildren: 0.3 },
+              },
             }}
             className="flex flex-nowrap md:flex-wrap justify-start md:justify-between items-center gap-8 overflow-x-auto pb-2 hide-scrollbar"
           >
             {AUDIENCE.map((item, i) => {
               const Icon = item.icon;
               return (
-                <div key={item.label} className="flex items-center shrink-0 md:flex-1">
+                <div
+                  key={item.label}
+                  className="flex items-center shrink-0 md:flex-1"
+                >
                   {i !== 0 && (
                     <div className="w-px h-12 bg-white/5 hidden md:block mr-8" />
                   )}
