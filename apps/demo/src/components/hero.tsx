@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   GraduationCap,
   Briefcase,
@@ -18,129 +18,197 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { easePremium } from "./motion-primitives";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 
 const AUDIENCE = [
   { icon: GraduationCap, label: "Students" },
-  { icon: Briefcase, label: "Professionals" },
-  { icon: Radar, label: "Job Seekers" },
-  { icon: FileEdit, label: "Creators" },
-  { icon: Flag, label: "Leaders" },
+  { icon: Briefcase,     label: "Professionals" },
+  { icon: Radar,         label: "Job Seekers" },
+  { icon: FileEdit,      label: "Creators" },
+  { icon: Flag,          label: "Leaders" },
 ];
 
 const FLOATING_TAGS = [
-  {
-    icon: Gauge,
-    label: "Pace too fast — slowing down helps comprehension",
-    color: "text-primary",
-  },
-  {
-    icon: AudioWaveform,
-    label: "Tone shift detected — try a warmer register here",
-    color: "text-secondary",
-  },
-  {
-    icon: Mic,
-    label: "3 filler words in 10 seconds — practice pausing instead",
-    color: "text-primary",
-  },
-  {
-    icon: List,
-    label: "Structure unclear — lead with your main point first",
-    color: "text-secondary",
-  },
-  {
-    icon: BarChart3,
-    label: "Confidence score: 72% — eye contact boosts this",
-    color: "text-primary",
-  },
-  {
-    icon: Brain,
-    label: "Strong argument — reinforce with a concrete example",
-    color: "text-secondary",
-  },
-  {
-    icon: Zap,
-    label: "Energy dipped mid-sentence — sustain your emphasis",
-    color: "text-primary",
-  },
+  { icon: Gauge,         label: "Pace too fast — slowing down helps comprehension",        color: "text-primary"   },
+  { icon: AudioWaveform, label: "Tone shift detected — try a warmer register here",        color: "text-secondary" },
+  { icon: Mic,           label: "3 filler words in 10 seconds — practice pausing instead", color: "text-primary"   },
+  { icon: List,          label: "Structure unclear — lead with your main point first",      color: "text-secondary" },
+  { icon: BarChart3,     label: "Confidence score: 72% — eye contact boosts this",         color: "text-primary"   },
+  { icon: Brain,         label: "Strong argument — reinforce with a concrete example",      color: "text-secondary" },
+  { icon: Zap,           label: "Energy dipped mid-sentence — sustain your emphasis",       color: "text-primary"   },
 ];
+
+// Each tag's own loop: travel for TRAVEL_MS, then stay hidden for GAP_MS, repeat.
+// STAGGER_MS is the time offset between consecutive tags launching.
+// With TRAVEL_MS=4800, GAP_MS=9400 → full period=14200ms, stagger=2100ms
+// → at any moment ~2–3 tags are visible simultaneously.
+const TRAVEL_MS  = 4800;
+const GAP_MS     = 9400;   // invisible hold before next pass
+const PERIOD_MS  = TRAVEL_MS + GAP_MS;   // each tag's full loop = 14200ms
+const STAGGER_MS = 2100;   // offset between consecutive tags
 
 function scrollToWaitlist() {
   const el = document.getElementById("waitlist");
-  if (el) {
-    el.scrollIntoView({ behavior: "smooth" });
-  }
+  if (el) el.scrollIntoView({ behavior: "smooth" });
 }
 
-// Single floating tag that rises from bottom, fades in, travels up, fades out
-function FloatingTag({
+function easeInOut(t: number): number {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+function quadBezier(t: number, p0: number, p1: number, p2: number): number {
+  const mt = 1 - t;
+  return mt * mt * p0 + 2 * mt * t * p1 + t * t * p2;
+}
+
+/**
+ * BezierTag — each tag has its own independent looping rAF.
+ *
+ * Within each PERIOD_MS loop:
+ *   0 → TRAVEL_MS  : tag travels along the Bézier arc (visible)
+ *   TRAVEL_MS → end: tag is hidden (waiting for next loop)
+ *
+ * launchOffset is pre-subtracted from startTs so tag i appears
+ * i*STAGGER_MS after the previous one, creating a staggered stream
+ * where 2-3 are always visible at once.
+ *
+ * Arc direction: bottom-left → bows RIGHT → top-right
+ *   P0 (start)  : x = cW*0.05,  y = cH*0.90  (bottom, slightly left)
+ *   P1 (control): x = cW*1.15,  y = cH*0.40  (far right → rightward bow)
+ *   P2 (end)    : x = cW*0.60,  y = cH*0.04  (upper right, vanishes)
+ *
+ * The rightShift prop nudges the entire arc right so cards sit
+ * comfortably within the panel without clipping left.
+ */
+function BezierTag({
   icon: Icon,
   label,
   color,
-  delay,
-  startX,
+  launchOffset,
+  cW,
+  cH,
 }: {
   icon: React.ElementType;
   label: string;
   color: string;
-  delay: number;
-  startX: string; // e.g. "10%", "60%"
+  launchOffset: number;
+  cW: number;
+  cH: number;
 }) {
-  const [visible, setVisible] = useState(false);
+  const divRef = useRef<HTMLDivElement>(null);
+  const rafRef = useRef<number>(0);
+  const startTsRef = useRef<number | null>(null);
+
+  // Right-shift the whole arc so it sits in the right half of the panel
+  const shift = cW * 0.18;
+
+  // Bézier control points (rightward parabola)
+  const p0x = cW * 0.00 + shift;  // start: bottom, left-of-centre
+  const p0y = cH * 0.92;
+
+  const p1x = cW * 1.05 + shift;  // control: far right → pulls arc rightward
+  const p1y = cH * 0.42;
+
+  const p2x = cW * 0.42 + shift;  // end: upper-right
+  const p2y = cH * 0.03;
+
+  const TAG_HALF_W = 132; // half of card width (264/2) for centering
+
+  const tick = useCallback((ts: number) => {
+    if (!divRef.current) return;
+
+    if (startTsRef.current === null) startTsRef.current = ts;
+
+    // Position within this tag's own looping period
+    const elapsed  = ts - startTsRef.current;
+    const cyclePos = elapsed % PERIOD_MS;
+
+    let opacity: number;
+    let localT: number;
+
+    if (cyclePos < TRAVEL_MS) {
+      // Active: travelling along the arc
+      const rawT = cyclePos / TRAVEL_MS;
+      localT = easeInOut(rawT);
+
+      // Smooth fade in (first 10%) → fully visible → fade out (last 12%)
+      if (rawT < 0.10) {
+        opacity = rawT / 0.10;
+      } else if (rawT > 0.88) {
+        opacity = (1 - rawT) / 0.12;
+      } else {
+        opacity = 1;
+      }
+    } else {
+      // Hidden: waiting for next loop pass
+      opacity = 0;
+      localT  = 0;
+    }
+
+    const x = quadBezier(localT, p0x, p1x, p2x);
+    const y = quadBezier(localT, p0y, p1y, p2y);
+
+    divRef.current.style.transform = `translate(${x - TAG_HALF_W}px, ${y - 20}px)`;
+    divRef.current.style.opacity   = String(Math.max(0, Math.min(1, opacity)));
+
+    rafRef.current = requestAnimationFrame(tick);
+  }, [p0x, p0y, p1x, p1y, p2x, p2y]);
 
   useEffect(() => {
-    const timeout = setTimeout(() => setVisible(true), delay * 1000);
-    return () => clearTimeout(timeout);
-  }, [delay]);
+    // Prime the start timestamp so this tag is already `launchOffset` ms into
+    // its own period — giving it the correct staggered position in the stream.
+    const prime = requestAnimationFrame((ts) => {
+      // Subtract launchOffset so tag appears as if it started that many ms ago
+      startTsRef.current = ts - launchOffset;
+      rafRef.current = requestAnimationFrame(tick);
+    });
+    return () => {
+      cancelAnimationFrame(prime);
+      cancelAnimationFrame(rafRef.current);
+    };
+  }, [tick, launchOffset]);
 
   return (
-    <AnimatePresence>
-      {visible && (
-        <motion.div
-          key={label}
-          initial={{ opacity: 0, y: 60 }}
-          animate={{ opacity: [0, 1, 1, 0], y: [60, 30, -20, -80] }}
-          transition={{
-            duration: 4.5,
-            times: [0, 0.18, 0.75, 1],
-            ease: "easeInOut",
-            repeat: Infinity,
-            repeatDelay: (FLOATING_TAGS.length - 1) * 1.4,
-          }}
-          className="absolute"
-          style={{ left: startX, bottom: "10%" }}
-        >
-          <div className="glass-panel rounded-2xl px-4 py-2.5 flex items-center gap-2.5 shadow-2xl max-w-[260px]">
-            <Icon size={14} className={`${color} shrink-0`} />
-            <span className="font-sans text-xs text-on-surface leading-snug">
-              {label}
-            </span>
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+    <div
+      ref={divRef}
+      className="absolute top-0 left-0 pointer-events-none"
+      style={{ opacity: 0, willChange: "transform, opacity" }}
+    >
+      <div
+        className="glass-panel rounded-2xl px-4 py-2.5 flex items-center gap-2.5 shadow-2xl"
+        style={{ width: 264 }}
+      >
+        <Icon size={14} className={`${color} shrink-0`} />
+        <span className="font-sans text-xs text-on-surface leading-snug">
+          {label}
+        </span>
+      </div>
+    </div>
   );
 }
 
 export function Hero() {
-  // Stagger each tag so they don't all appear at once
-  const tagSlots = [
-    { startX: "4%" },
-    { startX: "28%" },
-    { startX: "52%" },
-    { startX: "8%" },
-    { startX: "36%" },
-    { startX: "16%" },
-    { startX: "44%" },
-  ];
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [dims, setDims] = useState({ w: 0, h: 0 });
+
+  useEffect(() => {
+    const measure = () => {
+      if (panelRef.current) {
+        setDims({ w: panelRef.current.offsetWidth, h: panelRef.current.offsetHeight });
+      }
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    if (panelRef.current) ro.observe(panelRef.current);
+    return () => ro.disconnect();
+  }, []);
 
   return (
     <section
       id="home"
       className="relative min-h-screen md:min-h-[92vh] flex flex-col justify-center pt-32 pb-0 md:pb-24 overflow-hidden"
     >
-      {/* Background image */}
+      {/* Background */}
       <div className="absolute inset-0 z-0">
         <motion.div
           initial={{ scale: 1.12, opacity: 0 }}
@@ -162,6 +230,8 @@ export function Hero() {
 
       <div className="max-w-[1280px] w-full mx-auto px-5 md:px-20 relative z-20">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+
+          {/* Left: copy */}
           <div className="md:col-span-7 flex flex-col justify-center">
             <motion.h1
               initial={{ opacity: 0, y: 28 }}
@@ -217,16 +287,20 @@ export function Hero() {
             </motion.p>
           </div>
 
-          {/* Floating tags — rise from bottom, travel up, fade out, loop */}
-          <div className="md:col-span-5 hidden md:block relative h-full min-h-[420px] overflow-hidden">
-            {FLOATING_TAGS.map((tag, i) => (
-              <FloatingTag
+          {/* Right: staggered Bézier arc tags */}
+          <div
+            ref={panelRef}
+            className="md:col-span-5 hidden md:block relative h-full min-h-[480px] overflow-hidden"
+          >
+            {dims.w > 0 && FLOATING_TAGS.map((tag, i) => (
+              <BezierTag
                 key={tag.label}
                 icon={tag.icon}
                 label={tag.label}
                 color={tag.color}
-                delay={i * 1.4}
-                startX={tagSlots[i % tagSlots.length].startX}
+                launchOffset={i * STAGGER_MS}
+                cW={dims.w}
+                cH={dims.h}
               />
             ))}
           </div>
