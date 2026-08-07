@@ -66,16 +66,39 @@ const FLOATING_TAGS = [
   },
 ];
 
-// Each tag's own loop: travel for TRAVEL_MS, then stay hidden for GAP_MS, repeat.
-// STAGGER_MS is the time offset between consecutive tags launching.
-// With TRAVEL_MS=7200, GAP_MS=8700 → full period=15900ms, stagger=2400ms
-// → at any moment ~3 tags are visible simultaneously, drifting at a
-// comfortable, readable pace (faster than the previous 9500ms pass,
-// still well short of the original 4800ms rush).
-const TRAVEL_MS = 7200;
-const GAP_MS = 8700; // invisible hold before next pass
-const PERIOD_MS = TRAVEL_MS + GAP_MS; // each tag's full loop = 15900ms
-const STAGGER_MS = 2400; // offset between consecutive tags
+// ---------------------------------------------------------------------------
+// Animation model — only two knobs matter, everything else is derived so it
+// can never silently drift out of sync when you tune them.
+//
+//   TRAVEL_MS   speed   — how long one card takes to cross the arc
+//   STAGGER_MS  spawn   — delay before the next card launches
+//
+// PERIOD_MS is forced to be an exact multiple of STAGGER_MS (one full trip
+// per tag), which guarantees the staggered tags tile the timeline cleanly
+// instead of drifting relative to each other. GAP_MS (idle time before a
+// tag's next lap) falls out of that, it is not a number you should hand-pick.
+//
+//   visible_at_once ≈ TRAVEL_MS / STAGGER_MS
+//
+// Current values → 7200 / 2400 = 3 cards visible at any moment.
+// Want denser? Lower STAGGER_MS (e.g. 1800 → ~4 visible). Want sparser?
+// Raise it. Don't touch GAP_MS/PERIOD_MS directly — they're computed below.
+// ---------------------------------------------------------------------------
+const TRAVEL_MS = 8000; // speed: time for one card to travel start -> end
+const STAGGER_MS = 2800; // spawn rate: time between successive card launches
+const FADE_IN_PCT = 0.15; // fraction of TRAVEL_MS spent fading in
+const FADE_OUT_PCT = 0.18; // fraction of TRAVEL_MS spent fading out
+
+const TAG_COUNT = FLOATING_TAGS.length;
+const PERIOD_MS = TAG_COUNT * STAGGER_MS; // each tag's full loop (travel + idle)
+
+if (PERIOD_MS <= TRAVEL_MS) {
+  // Dev-time guard: if this ever fires, every tag overlaps permanently —
+  // either raise STAGGER_MS or lower TRAVEL_MS.
+  console.warn(
+    `[Hero] PERIOD_MS (${PERIOD_MS}) <= TRAVEL_MS (${TRAVEL_MS}); tags will never fully cycle out. Raise STAGGER_MS or lower TRAVEL_MS.`,
+  );
+}
 
 function scrollToWaitlist() {
   const el = document.getElementById("waitlist");
@@ -98,12 +121,14 @@ function quadBezier(t: number, p0: number, p1: number, p2: number): number {
  * BezierTag — each tag has its own independent looping rAF.
  *
  * Within each PERIOD_MS loop:
- *   0 → TRAVEL_MS  : tag travels along the Bézier arc (visible)
- *   TRAVEL_MS → end: tag is hidden (waiting for next loop)
+ *   0 → TRAVEL_MS   : tag travels along the Bézier arc (visible)
+ *   TRAVEL_MS → end : tag is hidden (idle, waiting for next loop)
  *
  * launchOffset is pre-subtracted from startTs so tag i appears
- * i*STAGGER_MS after the previous one, creating a staggered stream
- * where 2-3 are always visible at once.
+ * i*STAGGER_MS after the previous one. Because PERIOD_MS is an exact
+ * multiple of STAGGER_MS, these offsets tile the loop with no drift,
+ * so the "N tags visible at once" count stays constant over time
+ * instead of wobbling.
  *
  * The panel is a strip anchored to the bottom-right of the section,
  * sized and positioned to sit over the laptop in the background photo
@@ -162,31 +187,23 @@ function BezierTag({
 
       if (startTsRef.current === null) startTsRef.current = ts;
 
-      // Position within this tag's own looping period
-      const elapsed = ts - startTsRef.current;
-      const cyclePos = elapsed % PERIOD_MS;
+      // Position within this tag's own looping period.
+      const elapsed = (ts - startTsRef.current) % PERIOD_MS;
+      const isTraveling = elapsed < TRAVEL_MS;
 
-      let opacity: number;
-      let localT: number;
+      // rawT: 0->1 progress through the travel phase only.
+      const rawT = isTraveling ? elapsed / TRAVEL_MS : 0;
+      const localT = isTraveling ? easeInOut(rawT) : 0;
 
-      if (cyclePos < TRAVEL_MS) {
-        // Active: travelling along the arc
-        const rawT = cyclePos / TRAVEL_MS;
-        localT = easeInOut(rawT);
-
-        // Smooth fade in (first 10%) → fully visible → fade out (last 12%)
-        if (rawT < 0.15) {
-          opacity = rawT / 0.15;
-        } else if (rawT > 0.82) {
-          opacity = (1 - rawT) / 0.18;
-        } else {
-          opacity = 1;
-        }
-      } else {
-        // Hidden: waiting for next loop pass
-        opacity = 0;
-        localT = 0;
-      }
+      // Fade in for the first FADE_IN_PCT, fade out for the last
+      // FADE_OUT_PCT, fully opaque in between. Zero whenever idle.
+      const opacity = !isTraveling
+        ? 0
+        : rawT < FADE_IN_PCT
+          ? rawT / FADE_IN_PCT
+          : rawT > 1 - FADE_OUT_PCT
+            ? (1 - rawT) / FADE_OUT_PCT
+            : 1;
 
       const x = quadBezier(localT, p0x, p1x, p2x);
       const y = quadBezier(localT, p0y, p1y, p2y);
@@ -203,7 +220,6 @@ function BezierTag({
     // Prime the start timestamp so this tag is already `launchOffset` ms into
     // its own period — giving it the correct staggered position in the stream.
     const prime = requestAnimationFrame((ts) => {
-      // Subtract launchOffset so tag appears as if it started that many ms ago
       startTsRef.current = ts - launchOffset;
       rafRef.current = requestAnimationFrame(tick);
     });
