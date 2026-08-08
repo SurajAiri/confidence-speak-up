@@ -84,8 +84,8 @@ const FLOATING_TAGS = [
 // Want denser? Lower STAGGER_MS (e.g. 1800 → ~4 visible). Want sparser?
 // Raise it. Don't touch GAP_MS/PERIOD_MS directly — they're computed below.
 // ---------------------------------------------------------------------------
-const TRAVEL_MS = 8000; // speed: time for one card to travel start -> end
-const STAGGER_MS = 2800; // spawn rate: time between successive card launches
+const TRAVEL_MS = 15000; // speed: time for one card to travel start -> end
+const STAGGER_MS = 5000; // spawn rate: time between successive card launches
 const FADE_IN_PCT = 0.15; // fraction of TRAVEL_MS spent fading in
 const FADE_OUT_PCT = 0.18; // fraction of TRAVEL_MS spent fading out
 
