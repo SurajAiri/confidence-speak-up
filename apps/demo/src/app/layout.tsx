@@ -7,9 +7,9 @@ import "@fontsource-variable/hanken-grotesk/wght.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Voxem — Speak Confidently, In Any Moment",
+  title: "SpeakUp — Speak Confidently, In Any Moment",
   description:
-    "AI-powered feedback that helps you speak clearly, confidently and with impact in any situation. Practice interviews, debates, and everyday conversations with Voxem.",
+    "AI-powered feedback that helps you speak clearly, confidently and with impact in any situation. Practice interviews, debates, and everyday conversations with SpeakUp.",
 };
 
 export default function RootLayout({

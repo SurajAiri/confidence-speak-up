@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { AudioLines, Menu, X, ArrowRight } from "lucide-react";
+import { Menu, X, ArrowRight } from "lucide-react";
+import { Logo } from "./logo";
 
 const NAV_LINKS = [
   { label: "Home", href: "#home", active: true },
@@ -40,12 +41,8 @@ export function Navbar() {
       }`}
     >
       <div className="max-w-[1280px] mx-auto flex items-center justify-between h-20 px-5 md:px-20">
-        <a
-          href="#home"
-          className="font-display text-2xl text-on-surface flex items-center gap-2 shrink-0"
-        >
-          <AudioLines className="text-primary" size={22} strokeWidth={2} />
-          Voxem
+        <a href="#home" className="shrink-0">
+          <Logo size="md" />
         </a>
 
         <ul className="hidden md:flex gap-8">

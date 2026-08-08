@@ -169,7 +169,7 @@ export function DashboardMock() {
       <div className="hidden md:flex w-[150px] shrink-0 flex-col border-r border-white/5 py-5 px-4">
         <div className="flex items-center gap-2 mb-8 px-1">
           <AudioLines size={16} className="text-primary" />
-          <span className="font-sans font-bold text-sm">Voxem</span>
+          <span className="font-sans font-bold text-sm">SpeakUp</span>
         </div>
         <div className="flex flex-col gap-1">
           {[
