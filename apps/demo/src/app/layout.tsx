@@ -1,36 +1,26 @@
 import type { Metadata } from "next";
-import { Fraunces, Geist, Geist_Mono } from "next/font/google";
+import "@fontsource/libre-caslon-text/400.css";
+import "@fontsource/libre-caslon-text/400-italic.css";
+import "@fontsource/libre-caslon-text/700.css";
+import "@fontsource-variable/hanken-grotesk/wght.css";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-const fraunces = Fraunces({
-  variable: "--font-fraunces",
-  subsets: ["latin"],
-  axes: ["opsz", "SOFT", "WONK"],
-});
-
 export const metadata: Metadata = {
-  title: "Voxem — Speak confidently, in any moment",
+  title: "Voxem — Speak Confidently, In Any Moment",
   description:
-    "AI-powered feedback that helps you speak clearly, confidently, and with impact in any situation.",
+    "AI-powered feedback that helps you speak clearly, confidently and with impact in any situation. Practice interviews, debates, and everyday conversations with Voxem.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col bg-ink text-cream">{children}</body>
+    <html lang="en" className="h-full">
+      <body className="min-h-full bg-surface text-on-surface antialiased selection:bg-primary selection:text-on-primary">
+        {children}
+      </body>
     </html>
   );
 }

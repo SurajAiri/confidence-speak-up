@@ -1,24 +1,23 @@
-import { Audience } from "@/components/audience";
-import { FeedbackPreview } from "@/components/feedback-preview";
-import { Footer, WaitlistCta } from "@/components/waitlist-cta";
+import { Navbar } from "@/components/navbar";
 import { Hero } from "@/components/hero";
-import { Nav } from "@/components/nav";
+import { ProblemSection } from "@/components/problem-section";
 import { PracticeModes } from "@/components/practice-modes";
-import { Problem } from "@/components/problem";
-import { WhyWaitlist } from "@/components/why-waitlist";
+import { BeyondGrammar } from "@/components/beyond-grammar";
+import { FinalCta } from "@/components/final-cta";
+import { Footer } from "@/components/footer";
+import { ScrollProgress } from "@/components/scroll-progress";
 
 export default function Home() {
   return (
     <>
-      <Nav />
-      <main className="flex-1">
+      <ScrollProgress />
+      <Navbar />
+      <main>
         <Hero />
-        <Audience />
-        <Problem />
+        <ProblemSection />
         <PracticeModes />
-        <FeedbackPreview />
-        <WhyWaitlist />
-        <WaitlistCta />
+        <BeyondGrammar />
+        <FinalCta />
       </main>
       <Footer />
     </>

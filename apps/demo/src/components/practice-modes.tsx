@@ -1,70 +1,94 @@
-import { MessageSquare, Swords, User, BookOpen } from "lucide-react";
+"use client";
+
 import Image from "next/image";
-import { Reveal } from "./reveal";
+import { motion } from "framer-motion";
+import { MessageCircle, FileText, User, Users } from "lucide-react";
+import { Reveal, Stagger, fadeUp } from "./motion-primitives";
 
 const MODES = [
   {
-    image: "/prompt.webp",
-    icon: MessageSquare,
     title: "Quick Prompt",
-    description: "Answer a question and speak naturally.",
+    desc: "Answer a question and speak naturally.",
+    icon: MessageCircle,
+    img: "/assets/prompt.webp",
   },
   {
-    image: "/read.webp",
-    icon: BookOpen,
     title: "Read & Explain",
-    description: "Read, absorb, and speak your take.",
+    desc: "Read, absorb, and speak your take.",
+    icon: FileText,
+    img: "/assets/read.webp",
   },
   {
-    image: "/interview.webp",
-    icon: User,
     title: "Interview Simulator",
-    description: "Practice interviews with confidence.",
+    desc: "Practice interviews with confidence.",
+    icon: User,
+    img: "/assets/interview.webp",
   },
   {
-    image: "/debate.webp",
-    icon: Swords,
     title: "Debate Arena",
-    description: "Argue, defend, and think on your feet.",
+    desc: "Argue, defend, and think on your feet.",
+    icon: Users,
+    img: "/assets/debate.webp",
   },
 ];
 
 export function PracticeModes() {
   return (
-    <section id="practice" className="bg-ink py-20">
-      <div className="mx-auto max-w-7xl px-6 lg:px-10">
-        <Reveal className="text-center">
-          <h2 className="font-display text-4xl tracking-tight text-cream sm:text-[2.75rem]">
-            Practice like <span className="text-amber italic">real life.</span>
+    <section id="practice" className="py-24 md:py-[120px] bg-surface-container-lowest">
+      <div className="max-w-[1280px] mx-auto px-5 md:px-20 text-center mb-14 md:mb-16">
+        <Reveal>
+          <h2 className="font-display text-[28px] md:text-[32px] text-on-surface mb-2">
+            Practice like <span className="italic text-primary">real life.</span>
           </h2>
-          <p className="mt-3 text-text-muted">Choose a mode and start a conversation.</p>
+          <p className="font-sans text-base text-on-surface-variant">
+            Choose a mode and start a conversation.
+          </p>
         </Reveal>
+      </div>
 
-        <div className="mt-14 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {MODES.map((mode, i) => (
-            <Reveal key={mode.title} delay={i * 0.08}>
-              <div className="group relative aspect-[3/4] overflow-hidden rounded-2xl border border-ink-line/60">
-                <Image
-                  src={mode.image}
-                  alt=""
-                  fill
-                  sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 90vw"
-                  className="object-cover transition-transform duration-700 ease-out group-hover:scale-105"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/20 to-transparent" />
-                <div className="absolute inset-x-0 bottom-0 p-5">
-                  <span className="mb-3 flex size-8 items-center justify-center rounded-full bg-ink-soft/90 backdrop-blur-sm">
-                    <mode.icon className="size-4 text-amber" strokeWidth={2} />
-                  </span>
-                  <h3 className="font-display text-lg text-cream">{mode.title}</h3>
-                  <p className="mt-1 text-xs leading-snug text-text-muted">
-                    {mode.description}
+      <div className="max-w-[1280px] mx-auto px-5 md:px-20">
+        <Stagger className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+          {MODES.map((mode) => {
+            const Icon = mode.icon;
+            return (
+              <motion.div
+                key={mode.title}
+                variants={fadeUp}
+                whileHover={{ y: -10 }}
+                transition={{ type: "spring", stiffness: 260, damping: 22 }}
+                className="group relative rounded-xl overflow-hidden glass-panel h-[260px] md:h-[400px] flex flex-col justify-end cursor-pointer"
+              >
+                <div className="absolute inset-0 z-0">
+                  <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent z-10" />
+                  <motion.div
+                    className="w-full h-full relative"
+                    whileHover={{ scale: 1.08 }}
+                    transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+                  >
+                    <Image
+                      src={mode.img}
+                      alt={mode.title}
+                      fill
+                      className="object-cover"
+                      sizes="(max-width: 768px) 50vw, 25vw"
+                    />
+                  </motion.div>
+                </div>
+                <div className="relative z-20 p-4 md:p-6">
+                  <div className="w-9 h-9 md:w-10 md:h-10 rounded-full glass-panel flex items-center justify-center mb-3 md:mb-4">
+                    <Icon size={16} className="text-on-surface" />
+                  </div>
+                  <h3 className="font-sans text-sm font-semibold text-on-surface mb-1">
+                    {mode.title}
+                  </h3>
+                  <p className="font-sans text-xs text-on-surface-variant line-clamp-2">
+                    {mode.desc}
                   </p>
                 </div>
-              </div>
-            </Reveal>
-          ))}
-        </div>
+              </motion.div>
+            );
+          })}
+        </Stagger>
       </div>
     </section>
   );
