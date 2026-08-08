@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Toaster } from "sonner";
 import "@fontsource/libre-caslon-text/400.css";
 import "@fontsource/libre-caslon-text/400-italic.css";
 import "@fontsource/libre-caslon-text/700.css";
@@ -20,6 +21,23 @@ export default function RootLayout({
     <html lang="en" className="h-full">
       <body className="min-h-full bg-surface text-on-surface antialiased selection:bg-primary selection:text-on-primary">
         {children}
+        <Toaster
+          position="bottom-center"
+          theme="dark"
+          richColors
+          toastOptions={{
+            unstyled: true,
+            classNames: {
+              toast:
+                "font-sans text-sm rounded-full px-6 py-3.5 flex items-center gap-3 shadow-lg border w-fit max-w-[calc(100vw-2.5rem)]",
+              default:
+                "bg-surface-container-low border-outline-variant text-on-surface",
+              success: "bg-primary/10 border-primary/30 text-primary",
+              error: "bg-error-container/95 border-error/40 text-on-error-container",
+              title: "font-sans font-medium",
+            },
+          }}
+        />
       </body>
     </html>
   );
