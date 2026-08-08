@@ -217,6 +217,16 @@ function BezierTag({
   );
 
   useEffect(() => {
+    // Respect prefers-reduced-motion: skip the animation loop entirely and
+    // leave the tag at rest (invisible) rather than forcing motion on users
+    // who've asked their OS/browser not to show it.
+    if (
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      return;
+    }
+
     // Prime the start timestamp so this tag is already `launchOffset` ms into
     // its own period — giving it the correct staggered position in the stream.
     const prime = requestAnimationFrame((ts) => {

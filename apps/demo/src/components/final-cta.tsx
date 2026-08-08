@@ -50,7 +50,9 @@ export function FinalCta() {
           <div className="relative glass-panel glass-panel-glow rounded-3xl p-8 md:p-16 text-center max-w-3xl mx-auto overflow-hidden">
             <motion.div
               className="absolute -top-24 -right-24 w-72 h-72 rounded-full bg-primary/10 blur-3xl pointer-events-none"
-              animate={{ scale: [1, 1.15, 1], opacity: [0.5, 0.8, 0.5] }}
+              initial={{ scale: 1, opacity: 0.5 }}
+              whileInView={{ scale: [1, 1.15, 1], opacity: [0.5, 0.8, 0.5] }}
+              viewport={{ once: false, amount: 0.3 }}
               transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
             />
             <h2 className="font-display text-[28px] leading-[1.2] md:text-[48px] md:leading-[1.2] text-on-surface mb-4 relative">

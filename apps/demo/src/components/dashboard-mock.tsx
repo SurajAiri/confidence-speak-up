@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, useInView } from "framer-motion";
 import { AudioLines, Play, Maximize2, Rewind } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -155,16 +155,24 @@ function Waveform() {
 export function DashboardMock() {
   const [activeTab, setActiveTab] = useState(0);
   const [progress, setProgress] = useState(0.8);
+  const containerRef = useRef<HTMLDivElement>(null);
+  // Below-the-fold mock: don't burn CPU on the progress-bar interval or the
+  // "REC" pulse until the laptop screen has actually scrolled into view.
+  const isInView = useInView(containerRef, { once: false, amount: 0.3 });
 
   useEffect(() => {
+    if (!isInView) return;
     const id = setInterval(() => {
       setProgress((p) => (p >= 0.95 ? 0.6 : p + 0.01));
     }, 400);
     return () => clearInterval(id);
-  }, []);
+  }, [isInView]);
 
   return (
-    <div className="w-full h-full bg-[#131313] rounded-[10px] overflow-hidden flex text-on-surface select-none">
+    <div
+      ref={containerRef}
+      className="w-full h-full bg-[#131313] rounded-[10px] overflow-hidden flex text-on-surface select-none"
+    >
       {/* Sidebar */}
       <div className="hidden md:flex w-[150px] shrink-0 flex-col border-r border-white/5 py-5 px-4">
         <div className="flex items-center gap-2 mb-8 px-1">
@@ -249,8 +257,12 @@ export function DashboardMock() {
               </div>
               <motion.div
                 className="absolute top-3 left-3 flex items-center gap-1.5 bg-black/50 rounded-full px-2 py-1"
-                animate={{ opacity: [1, 0.4, 1] }}
-                transition={{ duration: 1.6, repeat: Infinity }}
+                animate={isInView ? { opacity: [1, 0.4, 1] } : { opacity: 1 }}
+                transition={
+                  isInView
+                    ? { duration: 1.6, repeat: Infinity }
+                    : { duration: 0 }
+                }
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-alert" />
                 <span className="text-[9px] font-bold">REC</span>
