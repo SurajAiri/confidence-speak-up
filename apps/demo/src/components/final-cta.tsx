@@ -8,11 +8,36 @@ import { Reveal, easePremium } from "./motion-primitives";
 export function FinalCta() {
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) return;
-    setSubmitted(true);
+    if (!email || isSubmitting) return;
+
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/waitlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        setError(data.error ?? "Something went wrong. Please try again.");
+        return;
+      }
+
+      setSubmitted(true);
+    } catch {
+      setError("Network error. Please check your connection and try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -46,19 +71,29 @@ export function FinalCta() {
                   type="email"
                   required
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    if (error) setError(null);
+                  }}
                   placeholder="Enter your email"
-                  className="flex-grow bg-surface-container-low border border-outline-variant rounded-full px-6 py-3 font-sans text-sm text-on-surface placeholder:text-on-surface-variant focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-colors"
+                  disabled={isSubmitting}
+                  className="flex-grow bg-surface-container-low border border-outline-variant rounded-full px-6 py-3 font-sans text-sm text-on-surface placeholder:text-on-surface-variant focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-colors disabled:opacity-60"
                 />
                 <motion.button
                   whileHover={{ scale: 1.04 }}
                   whileTap={{ scale: 0.97 }}
                   type="submit"
-                  className="bg-primary text-on-primary font-bold text-sm rounded-full px-8 py-3 flex justify-center items-center gap-2 whitespace-nowrap"
+                  disabled={isSubmitting}
+                  className="bg-primary text-on-primary font-bold text-sm rounded-full px-8 py-3 flex justify-center items-center gap-2 whitespace-nowrap disabled:opacity-60"
                 >
-                  Join Waitlist
+                  {isSubmitting ? "Joining…" : "Join Waitlist"}
                   <ArrowRight size={16} />
                 </motion.button>
+                {error && (
+                  <p className="absolute -bottom-7 left-0 right-0 text-xs text-red-400">
+                    {error}
+                  </p>
+                )}
               </form>
             ) : (
               <motion.div
