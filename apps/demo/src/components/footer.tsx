@@ -1,4 +1,4 @@
-import { AudioLines } from "lucide-react";
+import { Logo } from "./logo";
 
 function TwitterIcon() {
   return (
@@ -29,17 +29,18 @@ export function Footer() {
       <div className="max-w-[1280px] mx-auto px-5 md:px-20">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-10 md:gap-6">
           <div className="md:col-span-1">
-            <div className="font-display text-xl text-on-surface mb-4 flex items-center gap-2">
-              <AudioLines className="text-primary" size={18} />
-              Voxem
+            <div className="mb-4">
+              <Logo size="sm" />
             </div>
             <p className="font-sans text-xs text-on-surface-variant leading-relaxed">
-              © 2026 Voxem AI. Refined rhetoric for the modern leader.
+              © 2026 HyeKai.com Refined rhetoric for the modern leader.
             </p>
           </div>
 
           <div className="flex flex-col gap-2">
-            <p className="font-sans text-xs font-semibold text-on-surface mb-1 tracking-wide uppercase">Navigate</p>
+            <p className="font-sans text-xs font-semibold text-on-surface mb-1 tracking-wide uppercase">
+              Navigate
+            </p>
             {NAV_LINKS.map((link) => (
               <a
                 key={link.label}
@@ -52,7 +53,9 @@ export function Footer() {
           </div>
 
           <div className="flex flex-col gap-2">
-            <p className="font-sans text-xs font-semibold text-on-surface mb-1 tracking-wide uppercase">Legal</p>
+            <p className="font-sans text-xs font-semibold text-on-surface mb-1 tracking-wide uppercase">
+              Legal
+            </p>
             <a
               href="#"
               className="font-sans text-xs text-on-surface-variant hover:text-primary-fixed transition-colors opacity-80 hover:opacity-100 w-fit"
@@ -74,7 +77,9 @@ export function Footer() {
           </div>
 
           <div className="flex flex-col gap-3">
-            <p className="font-sans text-xs font-semibold text-on-surface mb-1 tracking-wide uppercase">Follow us</p>
+            <p className="font-sans text-xs font-semibold text-on-surface mb-1 tracking-wide uppercase">
+              Follow us
+            </p>
             <a
               href="#"
               className="font-sans text-xs text-on-surface-variant hover:text-primary-fixed transition-colors opacity-80 hover:opacity-100 flex items-center gap-2 w-fit"

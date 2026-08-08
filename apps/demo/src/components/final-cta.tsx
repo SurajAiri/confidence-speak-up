@@ -1,18 +1,43 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, CheckCircle2, Loader2 } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 import { Reveal, easePremium } from "./motion-primitives";
 
 export function FinalCta() {
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) return;
-    setSubmitted(true);
+    if (!email || isSubmitting) return;
+
+    setIsSubmitting(true);
+
+    try {
+      const res = await fetch("/api/waitlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        toast.error(data.error ?? "Something went wrong. Please try again.");
+        return;
+      }
+
+      toast.success(data.message ?? "You're on the list!");
+      setSubmitted(true);
+    } catch {
+      toast.error("Network error. Please check your connection and try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -25,7 +50,9 @@ export function FinalCta() {
           <div className="relative glass-panel glass-panel-glow rounded-3xl p-8 md:p-16 text-center max-w-3xl mx-auto overflow-hidden">
             <motion.div
               className="absolute -top-24 -right-24 w-72 h-72 rounded-full bg-primary/10 blur-3xl pointer-events-none"
-              animate={{ scale: [1, 1.15, 1], opacity: [0.5, 0.8, 0.5] }}
+              initial={{ scale: 1, opacity: 0.5 }}
+              whileInView={{ scale: [1, 1.15, 1], opacity: [0.5, 0.8, 0.5] }}
+              viewport={{ once: false, amount: 0.3 }}
               transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
             />
             <h2 className="font-display text-[28px] leading-[1.2] md:text-[48px] md:leading-[1.2] text-on-surface mb-4 relative">
@@ -48,24 +75,37 @@ export function FinalCta() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Enter your email"
-                  className="flex-grow bg-surface-container-low border border-outline-variant rounded-full px-6 py-3 font-sans text-sm text-on-surface placeholder:text-on-surface-variant focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-colors"
+                  disabled={isSubmitting}
+                  className="flex-grow bg-surface-container-low border border-outline-variant rounded-full px-6 py-3 font-sans text-sm text-on-surface placeholder:text-on-surface-variant focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-colors disabled:opacity-60"
                 />
                 <motion.button
-                  whileHover={{ scale: 1.04 }}
-                  whileTap={{ scale: 0.97 }}
+                  whileHover={{ scale: isSubmitting ? 1 : 1.04 }}
+                  whileTap={{ scale: isSubmitting ? 1 : 0.97 }}
                   type="submit"
-                  className="bg-primary text-on-primary font-bold text-sm rounded-full px-8 py-3 flex justify-center items-center gap-2 whitespace-nowrap"
+                  disabled={isSubmitting}
+                  className="bg-primary text-on-primary font-bold text-sm rounded-full px-8 py-3 flex justify-center items-center gap-2 whitespace-nowrap disabled:opacity-70 disabled:cursor-not-allowed min-w-[152px]"
                 >
-                  Join Waitlist
-                  <ArrowRight size={16} />
+                  {isSubmitting ? (
+                    <>
+                      Joining
+                      <Loader2 size={16} className="animate-spin" />
+                    </>
+                  ) : (
+                    <>
+                      Join Waitlist
+                      <ArrowRight size={16} />
+                    </>
+                  )}
                 </motion.button>
               </form>
             ) : (
               <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="max-w-lg mx-auto bg-primary/10 border border-primary/30 rounded-full px-6 py-3.5 relative"
+                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ duration: 0.4, ease: easePremium }}
+                className="flex items-center justify-center gap-2.5 max-w-lg mx-auto bg-primary/10 border border-primary/30 rounded-full px-6 py-3.5 relative"
               >
+                <CheckCircle2 size={18} className="text-primary shrink-0" />
                 <span className="font-sans text-sm text-primary font-semibold">
                   You&apos;re on the list! We&apos;ll be in touch soon.
                 </span>
