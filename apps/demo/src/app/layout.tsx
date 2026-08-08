@@ -33,7 +33,8 @@ export default function RootLayout({
               default:
                 "bg-surface-container-low border-outline-variant text-on-surface",
               success: "bg-primary/10 border-primary/30 text-primary",
-              error: "bg-error-container/95 border-error/40 text-on-error-container",
+              error:
+                "bg-error-container/95 border-error/40 text-on-error-container",
               title: "font-sans font-medium",
             },
           }}

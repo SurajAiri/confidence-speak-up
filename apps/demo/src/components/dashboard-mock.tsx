@@ -37,7 +37,7 @@ function RadarChart() {
     <svg viewBox="0 0 260 240" className="w-full h-full">
       {gridLevels.map((lvl) => {
         const gridPts = RADAR_LABELS.map((l) =>
-          polar(cx, cy, maxR * lvl, l.angle)
+          polar(cx, cy, maxR * lvl, l.angle),
         );
         return (
           <polygon
@@ -90,8 +90,17 @@ function RadarChart() {
             className="fill-on-surface-variant"
             style={{ fontSize: "9px", fontFamily: "var(--font-sans)" }}
           >
-            <tspan x={p.x} dy="-2">{l.key}</tspan>
-            <tspan x={p.x} dy="11" className="fill-on-surface" style={{fontWeight: 600}}>{l.value}</tspan>
+            <tspan x={p.x} dy="-2">
+              {l.key}
+            </tspan>
+            <tspan
+              x={p.x}
+              dy="11"
+              className="fill-on-surface"
+              style={{ fontWeight: 600 }}
+            >
+              {l.value}
+            </tspan>
           </text>
         );
       })}
@@ -102,7 +111,10 @@ function RadarChart() {
 function Waveform() {
   const barsRef = useRef<number[]>([]);
   if (barsRef.current.length === 0) {
-    barsRef.current = Array.from({ length: 90 }, () => 0.15 + Math.random() * 0.85);
+    barsRef.current = Array.from(
+      { length: 90 },
+      () => 0.15 + Math.random() * 0.85,
+    );
   }
   const bars = barsRef.current;
 
@@ -160,24 +172,31 @@ export function DashboardMock() {
           <span className="font-sans font-bold text-sm">Voxem</span>
         </div>
         <div className="flex flex-col gap-1">
-          {["Overview", "Sessions", "Analytics", "Practice", "Goals", "Settings"].map(
-            (item, i) => (
-              <div
-                key={item}
-                className={`text-xs px-3 py-2 rounded-lg font-sans ${
-                  i === 0
-                    ? "bg-primary/15 text-primary font-semibold"
-                    : "text-on-surface-variant"
-                }`}
-              >
-                {item}
-              </div>
-            )
-          )}
+          {[
+            "Overview",
+            "Sessions",
+            "Analytics",
+            "Practice",
+            "Goals",
+            "Settings",
+          ].map((item, i) => (
+            <div
+              key={item}
+              className={`text-xs px-3 py-2 rounded-lg font-sans ${
+                i === 0
+                  ? "bg-primary/15 text-primary font-semibold"
+                  : "text-on-surface-variant"
+              }`}
+            >
+              {item}
+            </div>
+          ))}
         </div>
         <div className="mt-auto">
           <div className="rounded-lg bg-white/5 p-3 mb-3">
-            <p className="text-[10px] text-on-surface-variant">Session Streak</p>
+            <p className="text-[10px] text-on-surface-variant">
+              Session Streak
+            </p>
             <p className="text-sm font-bold text-primary">🔥 12 days</p>
           </div>
         </div>
@@ -246,7 +265,11 @@ export function DashboardMock() {
                 </div>
                 <div className="flex items-center justify-between text-[10px] text-on-surface-variant">
                   <div className="flex items-center gap-2">
-                    <Play size={12} className="text-on-surface" fill="currentColor" />
+                    <Play
+                      size={12}
+                      className="text-on-surface"
+                      fill="currentColor"
+                    />
                     <span>
                       {(progress * 3).toFixed(2).replace(".", ":")} / 3:00
                     </span>
@@ -268,7 +291,10 @@ export function DashboardMock() {
                 Overall Score
               </span>
               <span className="text-xl md:text-2xl font-display text-primary">
-                8.4<span className="text-[10px] text-on-surface-variant font-sans">/10</span>
+                8.4
+                <span className="text-[10px] text-on-surface-variant font-sans">
+                  /10
+                </span>
               </span>
             </div>
             <div className="flex-1 min-h-0">
@@ -280,12 +306,30 @@ export function DashboardMock() {
         {/* Bottom feedback strip */}
         <div className="hidden md:grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-white/5 shrink-0">
           {[
-            { time: "0:42", label: "Long pause", desc: "Try using a transition phrase.", color: "#e0a63a" },
-            { time: "1:36", label: "Great emphasis", desc: "Strong, confident tone.", color: "#7fb98a" },
-            { time: "2:05", label: "Too many fillers", desc: "\u201cum\u201d used in 10 seconds.", color: "#d9705f" },
+            {
+              time: "0:42",
+              label: "Long pause",
+              desc: "Try using a transition phrase.",
+              color: "#e0a63a",
+            },
+            {
+              time: "1:36",
+              label: "Great emphasis",
+              desc: "Strong, confident tone.",
+              color: "#7fb98a",
+            },
+            {
+              time: "2:05",
+              label: "Too many fillers",
+              desc: "\u201cum\u201d used in 10 seconds.",
+              color: "#d9705f",
+            },
           ].map((item) => (
             <div key={item.time}>
-              <p className="text-[10px] font-bold" style={{ color: item.color }}>
+              <p
+                className="text-[10px] font-bold"
+                style={{ color: item.color }}
+              >
                 {item.time} — {item.label}
               </p>
               <p className="text-[10px] text-on-surface-variant">{item.desc}</p>

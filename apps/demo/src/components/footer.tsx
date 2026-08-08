@@ -34,12 +34,14 @@ export function Footer() {
               Voxem
             </div>
             <p className="font-sans text-xs text-on-surface-variant leading-relaxed">
-              © 2026 Voxem AI. Refined rhetoric for the modern leader.
+              © 2026 Hyekai.com Refined rhetoric for the modern leader.
             </p>
           </div>
 
           <div className="flex flex-col gap-2">
-            <p className="font-sans text-xs font-semibold text-on-surface mb-1 tracking-wide uppercase">Navigate</p>
+            <p className="font-sans text-xs font-semibold text-on-surface mb-1 tracking-wide uppercase">
+              Navigate
+            </p>
             {NAV_LINKS.map((link) => (
               <a
                 key={link.label}
@@ -52,7 +54,9 @@ export function Footer() {
           </div>
 
           <div className="flex flex-col gap-2">
-            <p className="font-sans text-xs font-semibold text-on-surface mb-1 tracking-wide uppercase">Legal</p>
+            <p className="font-sans text-xs font-semibold text-on-surface mb-1 tracking-wide uppercase">
+              Legal
+            </p>
             <a
               href="#"
               className="font-sans text-xs text-on-surface-variant hover:text-primary-fixed transition-colors opacity-80 hover:opacity-100 w-fit"
@@ -74,7 +78,9 @@ export function Footer() {
           </div>
 
           <div className="flex flex-col gap-3">
-            <p className="font-sans text-xs font-semibold text-on-surface mb-1 tracking-wide uppercase">Follow us</p>
+            <p className="font-sans text-xs font-semibold text-on-surface mb-1 tracking-wide uppercase">
+              Follow us
+            </p>
             <a
               href="#"
               className="font-sans text-xs text-on-surface-variant hover:text-primary-fixed transition-colors opacity-80 hover:opacity-100 flex items-center gap-2 w-fit"
