@@ -186,8 +186,8 @@ function BezierTag({
   // wide (a strip over the laptop, not a tall column reaching toward
   // head height), so these fractions stay inset from all four edges
   // by more than half a card's size — no clipping, no reach upward.
-  const p0x = cW * 0.28; // start: lower-left of the panel, near the laptop
-  const p0y = cH * 0.75;
+  const p0x = cW * 0.4; // start: lower-left of the panel, near the laptop
+  const p0y = cH * 0.6;
 
   const p1x = cW * 0.85; // control: rightward bow, inside the panel
   const p1y = cH * 0.4;

@@ -59,8 +59,8 @@ export function ProblemSection() {
               </h2>
               <p className="font-sans text-[15px] md:text-base leading-relaxed text-on-surface-variant max-w-[380px]">
                 Grammar won&apos;t help you in interviews, client calls or on
-                stage. We go beyond grammar to help you sound clear,
-                confident, and influential.
+                stage. We go beyond grammar to help you sound clear, confident,
+                and influential.
               </p>
             </Reveal>
           </div>
@@ -70,9 +70,7 @@ export function ProblemSection() {
             there isn't room to lay them out without colliding with the
             copy or the photo's subject. */}
         <div className="hidden md:block absolute inset-0">
-          <div className="max-w-[1280px] h-full mx-auto px-5 md:px-20 relative">
-            <QuoteCards />
-          </div>
+          <QuoteCards />
         </div>
       </div>
     </section>
