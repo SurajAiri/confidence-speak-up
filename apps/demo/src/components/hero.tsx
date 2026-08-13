@@ -296,7 +296,7 @@ export function Hero() {
   return (
     <section
       id="home"
-      className="relative min-h-screen md:min-h-[92vh] flex flex-col justify-center pt-32 pb-0 md:pb-24 overflow-hidden"
+      className="relative min-h-screen flex flex-col justify-center pt-32 pb-0 md:pb-24 overflow-hidden"
     >
       {/* Background */}
       <div className="absolute inset-0 z-0">
