@@ -3,10 +3,10 @@
 import Image from "next/image";
 import { motion } from "framer-motion";
 import {
-  GraduationCap,
+  Users,
   Briefcase,
-  Radar,
-  FileEdit,
+  UserSearch,
+  Feather,
   Flag,
   Gauge,
   AudioWaveform,
@@ -21,11 +21,27 @@ import { easePremium } from "./motion-primitives";
 import { useEffect, useRef, useState, useCallback } from "react";
 
 const AUDIENCE = [
-  { icon: GraduationCap, label: "Students" },
-  { icon: Briefcase, label: "Professionals" },
-  { icon: Radar, label: "Job Seekers" },
-  { icon: FileEdit, label: "Creators" },
-  { icon: Flag, label: "Leaders" },
+  {
+    icon: Users,
+    label: "For Students",
+    copy: "Speak up in class and stand out.",
+  },
+  {
+    icon: Briefcase,
+    label: "For Professionals",
+    copy: "Lead meetings and present with impact.",
+  },
+  {
+    icon: UserSearch,
+    label: "For Job Seekers",
+    copy: "Ace interviews with confidence.",
+  },
+  {
+    icon: Feather,
+    label: "For Creators",
+    copy: "Engage your audience with clarity.",
+  },
+  { icon: Flag, label: "For Leaders", copy: "Inspire teams and drive change." },
 ];
 
 const FLOATING_TAGS = [
@@ -430,7 +446,7 @@ export function Hero() {
                 transition: { staggerChildren: 0.1, delayChildren: 0.3 },
               },
             }}
-            className="flex flex-nowrap md:flex-wrap justify-start md:justify-between items-center gap-8 overflow-x-auto pb-2 hide-scrollbar"
+            className="flex flex-nowrap md:flex-wrap justify-start md:justify-between items-stretch gap-0 overflow-x-auto pb-2 hide-scrollbar"
           >
             {AUDIENCE.map((item, i) => {
               const Icon = item.icon;
@@ -440,7 +456,7 @@ export function Hero() {
                   className="flex items-center shrink-0 md:flex-1"
                 >
                   {i !== 0 && (
-                    <div className="w-px h-12 bg-white/5 hidden md:block mr-8" />
+                    <div className="w-px self-stretch bg-white/10 hidden md:block mr-8" />
                   )}
                   <motion.div
                     variants={{
@@ -452,16 +468,21 @@ export function Hero() {
                       },
                     }}
                     whileHover={{ y: -3 }}
-                    className="flex flex-col items-center gap-3 shrink-0 md:flex-1 cursor-default group"
+                    className="flex items-start gap-3.5 shrink-0 md:flex-1 cursor-default group pr-6 md:pr-0"
                   >
                     <Icon
-                      size={26}
+                      size={22}
                       strokeWidth={1.5}
-                      className="text-outline-variant group-hover:text-primary transition-colors duration-300"
+                      className="text-primary shrink-0 mt-0.5 transition-transform duration-300 group-hover:scale-110"
                     />
-                    <span className="font-sans text-xs text-on-surface-variant whitespace-nowrap">
-                      {item.label}
-                    </span>
+                    <div className="flex flex-col gap-1 min-w-0">
+                      <span className="font-sans text-sm font-semibold text-on-surface whitespace-nowrap">
+                        {item.label}
+                      </span>
+                      <span className="font-sans text-xs text-on-surface-variant leading-snug max-w-[150px]">
+                        {item.copy}
+                      </span>
+                    </div>
                   </motion.div>
                 </div>
               );
