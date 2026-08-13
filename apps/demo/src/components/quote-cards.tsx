@@ -9,23 +9,23 @@ import { easePremium } from "./motion-primitives";
 const QUOTES = [
   {
     text: "My ideas are good, but I freeze when I speak.",
-    style: { left: "50%", top: "6%", width: "25%" },
+    style: { left: "52%", top: "8%", width: "25%" },
     emphasis: true,
     delay: 0.1,
   },
   {
     text: "I stumble, use 'umm...' too often.",
-    style: { left: "71%", top: "21%", width: "22%" },
+    style: { left: "74%", top: "24%", width: "22%" },
     delay: 0.25,
   },
   {
     text: "I don't sound as confident as others.",
-    style: { left: "68%", top: "38%", width: "21%" },
+    style: { left: "71%", top: "44%", width: "21%" },
     delay: 0.4,
   },
   {
     text: "I know the topic, but I can't explain it well.",
-    style: { left: "64%", top: "55%", width: "25%" },
+    style: { left: "66%", top: "64%", width: "25%" },
     emphasis: true,
     delay: 0.55,
   },
@@ -41,7 +41,12 @@ export function QuoteCards() {
           whileInView={{ opacity: 1, y: 0, scale: 1 }}
           viewport={{ once: true, amount: 0.3 }}
           transition={{ duration: 0.7, ease: easePremium, delay: q.delay }}
-          style={{ ...q.style, minWidth: "230px" }}
+          // style={{ ...q.style, minWidth: "230px" }}
+          style={{
+            ...q.style,
+            minWidth: "230px",
+            maxWidth: "360px",
+          }}
           className={`absolute p-5 lg:p-6 rounded-2xl glass-panel ${
             q.emphasis ? "glass-panel-glow" : ""
           } pointer-events-auto`}
