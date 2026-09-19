@@ -34,7 +34,7 @@ const MODES = [
 
 export function PracticeModeCards() {
   return (
-    <Stagger className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+    <Stagger className="grid grid-cols-1 min-[480px]:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
       {MODES.map((mode) => {
         const Icon = mode.icon;
         return (
@@ -43,7 +43,7 @@ export function PracticeModeCards() {
             variants={fadeUp}
             whileHover={{ y: -10 }}
             transition={{ type: "spring", stiffness: 260, damping: 22 }}
-            className="group relative rounded-xl overflow-hidden glass-panel h-[260px] md:h-[400px] flex flex-col justify-end cursor-pointer"
+            className="group relative rounded-xl overflow-hidden glass-panel aspect-[4/5] sm:aspect-[2/3] lg:aspect-[2/3] flex flex-col justify-end cursor-pointer"
           >
             <div className="absolute inset-0 z-0">
               <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent z-10" />
@@ -57,7 +57,7 @@ export function PracticeModeCards() {
                   alt={mode.title}
                   fill
                   className="object-cover"
-                  sizes="(max-width: 768px) 50vw, 25vw"
+                  sizes="(max-width: 480px) 100vw, (max-width: 1024px) 50vw, 25vw"
                   loading="lazy"
                 />
               </motion.div>
@@ -66,10 +66,10 @@ export function PracticeModeCards() {
               <div className="w-9 h-9 md:w-10 md:h-10 rounded-full glass-panel flex items-center justify-center mb-3 md:mb-4">
                 <Icon size={16} className="text-on-surface" />
               </div>
-              <h3 className="font-sans text-sm font-semibold text-on-surface mb-1">
+              <h3 className="font-sans text-sm md:text-base font-semibold text-on-surface mb-1">
                 {mode.title}
               </h3>
-              <p className="font-sans text-xs text-on-surface-variant line-clamp-2">
+              <p className="font-sans text-xs md:text-sm text-on-surface-variant">
                 {mode.desc}
               </p>
             </div>

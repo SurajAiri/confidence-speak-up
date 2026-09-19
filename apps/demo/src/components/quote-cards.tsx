@@ -224,7 +224,7 @@ export function QuoteCards() {
         gap: q.trail.gap * k,
         minRadius: q.trail.minRadius * k,
         maxRadius: q.trail.maxRadius * k,
-        // color: "var(--color-primary)",
+        color: "#b2b1ae",
       })),
     [k],
   );
