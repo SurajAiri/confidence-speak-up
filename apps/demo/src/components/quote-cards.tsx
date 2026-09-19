@@ -224,6 +224,8 @@ export function QuoteCards() {
         gap: q.trail.gap * k,
         minRadius: q.trail.minRadius * k,
         maxRadius: q.trail.maxRadius * k,
+        minOpacity: (q.trail.minOpacity ?? 0.25) * 0.5,
+        maxOpacity: (q.trail.maxOpacity ?? 0.9) * 0.5,
         color: "#b2b1ae",
       })),
     [k],
