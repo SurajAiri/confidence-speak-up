@@ -142,7 +142,7 @@ function controlPoint(
   o: Pt,
   e: Pt,
   bend: number,
-  skew: number,
+  skew: number = 0.5,
   w: number,
   h: number,
   sign: 1 | -1,
@@ -184,7 +184,7 @@ function solveControl(
 }
 
 function toSource(items: Quote[]): string {
-  const p = (n: number, d = 2) => String(round(n, d));
+  const p = (n: number | undefined = 0, d = 2) => String(round(n ?? 0, d));
   const body = items
     .map((q) => {
       const t = q.trail;
@@ -197,13 +197,13 @@ function toSource(items: Quote[]): string {
         `    trail: {`,
         `      origin: { x: ${p(t.origin.x)}, y: ${p(t.origin.y)} },`,
         `      end: { x: ${p(t.end.x)}, y: ${p(t.end.y)} },`,
-        `      control: { bend: ${p(t.control.bend, 3)}, skew: ${p(t.control.skew, 3)} },`,
+        `      control: { bend: ${p(t.control.bend, 3)}, skew: ${p(t.control.skew ?? 0.5, 3)} },`,
         `      gap: ${p(t.gap)},`,
-        `      minRadius: ${p(t.minRadius)},`,
-        `      maxRadius: ${p(t.maxRadius)},`,
-        `      minOpacity: ${p(t.minOpacity)},`,
-        `      maxOpacity: ${p(t.maxOpacity)},`,
-        `      delay: ${p(t.delay)},`,
+        `      minRadius: ${p(t.minRadius ?? 3)},`,
+        `      maxRadius: ${p(t.maxRadius ?? 9)},`,
+        `      minOpacity: ${p(t.minOpacity ?? 0.25)},`,
+        `      maxOpacity: ${p(t.maxOpacity ?? 0.9)},`,
+        `      delay: ${p(t.delay ?? 0)},`,
         `    },`,
         `  },`,
       ]
@@ -308,8 +308,8 @@ function Calibrator() {
       items.map((q) => ({
         ...q.trail,
         gap: q.trail.gap * k,
-        minRadius: q.trail.minRadius * k,
-        maxRadius: q.trail.maxRadius * k,
+        minRadius: (q.trail.minRadius ?? 3) * k,
+        maxRadius: (q.trail.maxRadius ?? 9) * k,
       })),
     [items, k],
   );
@@ -343,7 +343,7 @@ function Calibrator() {
         cur.trail.origin,
         cur.trail.end,
         cur.trail.control.bend,
-        cur.trail.control.skew,
+        cur.trail.control.skew ?? 0.5,
         size.w,
         size.h,
         sign,
@@ -451,7 +451,7 @@ function Calibrator() {
                 q.trail.origin,
                 q.trail.end,
                 q.trail.control.bend,
-                q.trail.control.skew,
+                q.trail.control.skew ?? 0.5,
                 size.w,
                 size.h,
                 sign,
@@ -769,7 +769,7 @@ function Calibrator() {
             <Num
               label="skew"
               step={0.01}
-              value={cur.trail.control.skew}
+              value={cur.trail.control.skew ?? 0.5}
               onChange={(v) =>
                 upTrail({ control: { ...cur.trail.control, skew: v } })
               }
@@ -791,31 +791,31 @@ function Calibrator() {
             <Num
               label="delay (s)"
               step={0.05}
-              value={cur.trail.delay}
+              value={cur.trail.delay ?? 0}
               onChange={(v) => upTrail({ delay: v })}
             />
             <Num
               label="min radius"
               step={0.5}
-              value={cur.trail.minRadius}
+              value={cur.trail.minRadius ?? 3}
               onChange={(v) => upTrail({ minRadius: v })}
             />
             <Num
               label="max radius"
               step={0.5}
-              value={cur.trail.maxRadius}
+              value={cur.trail.maxRadius ?? 9}
               onChange={(v) => upTrail({ maxRadius: v })}
             />
             <Num
               label="min opacity"
               step={0.05}
-              value={cur.trail.minOpacity}
+              value={cur.trail.minOpacity ?? 0.25}
               onChange={(v) => upTrail({ minOpacity: v })}
             />
             <Num
               label="max opacity"
               step={0.05}
-              value={cur.trail.maxOpacity}
+              value={cur.trail.maxOpacity ?? 0.9}
               onChange={(v) => upTrail({ maxOpacity: v })}
             />
           </Group>
@@ -935,12 +935,12 @@ const fmt = (n: number) => String(round(n, 3));
 /** Number input that lets you type freely and steps with ArrowUp/Down. */
 function Num({
   label,
-  value,
+  value = 0,
   onChange,
   step = 0.1,
 }: {
   label: string;
-  value: number;
+  value?: number;
   onChange: (n: number) => void;
   step?: number;
 }) {
