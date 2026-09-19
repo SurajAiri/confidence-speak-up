@@ -1,70 +1,70 @@
 "use client";
 
 /**
- * ─────────────────────────────────────────────────────────────────────────
- * THOUGHT TRAIL CALIBRATOR
- * ─────────────────────────────────────────────────────────────────────────
- * Route: /calibrator  (drop this file at app/calibrator/page.tsx)
+ * /calibrator  — drag the trail points, copy the result back into quote-cards.tsx
  *
- * The stage here is pixel-identical to production — same image, same crop,
- * same gradient, same ThoughtTrail/bubble components, full width, nothing
- * squeezed by a side panel. All controls live in the bottom bar so the
- * thing you're calibrating against is never distorted by the calibrator's
- * own UI.
+ * Put this at:  app/calibrator/page.tsx   (pages router: pages/calibrator.tsx)
+ * Adjust the ThoughtTrail import below to wherever your component lives.
  *
- * Three drag handles per active quote, all directly on the photo:
- *   ● green   origin      — where the trail starts
- *   ◆ orange  end         — the bubble's near corner (implied final bubble)
- *   ▲ blue    curvature   — drag to bend the arc; this IS the curvature
- *                           control, not an abstract slider. It round-trips
- *                           exactly through {bend, skew} in the exported
- *                           config, so what you drag is what gets saved.
+ * What it does
+ *  - Renders the SAME 9:4 stage as problem-section.tsx (same photo, same
+ *    gradients, same cqw sizing for bubbles, same trail scaling `k`).
+ *  - For the selected quote you get three handles on the stage:
+ *        O = origin   (where the trail leaves the man)
+ *        C = control  (the curve's pull point, stored as { bend, skew })
+ *        E = end      (where the trail meets the bubble)
+ *  - You can also drag a bubble to move it, and drag its right edge to resize.
+ *  - Arrow keys nudge the active handle (Shift = 1% instead of 0.1%).
+ *  - Everything autosaves to localStorage; the "Code" box is a ready-to-paste
+ *    replacement for the QUOTES array.
  *
- * Gap / radius / opacity — density and size, not shape — stay as sliders
- * in the bottom bar, since those aren't naturally "a point you drag."
+ * ASSUMPTION about `control` (I couldn't see thought-trail.tsx):
+ *   control point = origin + skew * (end - origin) + bend * |end - origin| * n
+ *   where n is the unit vector perpendicular to origin→end, computed in stage
+ *   pixels. If the dashed guide curve does not sit on the real dots, tick
+ *   "Flip bend sign" first. If it's still off, edit controlPoint()/solveControl()
+ *   below — they are the only two places that encode this assumption.
  *
- * Trails are calibrated at TRAIL_REFERENCE_WIDTH (1400px, this stage's
- * desktop width) and scale proportionally at any other stage width, so
- * circle count and relative size stay consistent instead of drifting.
- * ─────────────────────────────────────────────────────────────────────────
+ * This is a dev tool: it 404s in production builds. Remove the guard at the
+ * bottom if you want it on a deployed preview.
  */
 
 import Image from "next/image";
-import { useMemo, useState, useCallback, useRef } from "react";
-import { motion } from "framer-motion";
+import { notFound } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ThoughtTrail,
-  getAbsoluteControlPoint,
-  controlPointToBendSkew,
   type ThoughtTrailConfig,
-  type Point,
-} from "@/components/thought-trail";
-import { useStageSize } from "@/components/use-stage-size";
+} from "@/components/thought-trail"; // <-- adjust path
 
-type QuoteEntry = {
-  id: string;
+/* -------------------------------------------------------------------------- */
+/*  Data (copied from quote-cards.tsx)                                        */
+/* -------------------------------------------------------------------------- */
+
+const REF_STAGE_WIDTH = 1440;
+const STORAGE_KEY = "calibrator:quotes:v1";
+
+type Pt = { x: number; y: number };
+type Quote = {
   text: string;
-  position: { left: string; top: string; width: string };
+  box: { left: number; top: number; width: number };
   emphasis?: boolean;
   delay: number;
   trail: ThoughtTrailConfig;
 };
+type Handle = "origin" | "control" | "end";
+type Active = Handle | "box";
 
-const INITIAL_QUOTES: QuoteEntry[] = [
+const DEFAULTS: Quote[] = [
   {
-    id: "q1",
     text: "My ideas are good, but I freeze when I speak.",
-    position: {
-      left: "clamp(48%, 52vw, 52%)",
-      top: "clamp(7%, 8vh, 10%)",
-      width: "clamp(240px, 25vw, 360px)",
-    },
+    box: { left: 52.2, top: 4.3, width: 24.9 },
     emphasis: true,
     delay: 0.1,
     trail: {
-      origin: { x: 40, y: 2 },
-      end: { x: 51, y: 9 },
-      control: { bend: 0.25, skew: 0.5 },
+      origin: { x: 64.68, y: 44 },
+      end: { x: 69.89, y: 23.71 },
+      control: { bend: 0.3, skew: 0.97 },
       gap: 26,
       minRadius: 3,
       maxRadius: 8,
@@ -74,18 +74,13 @@ const INITIAL_QUOTES: QuoteEntry[] = [
     },
   },
   {
-    id: "q2",
     text: "I stumble, use 'umm...' too often.",
-    position: {
-      left: "clamp(66%, 74vw, 74%)",
-      top: "clamp(21%, 24vh, 26%)",
-      width: "clamp(220px, 22vw, 320px)",
-    },
+    box: { left: 74.4, top: 21.9, width: 22.2 },
     delay: 0.25,
     trail: {
-      origin: { x: 52, y: 16 },
-      end: { x: 73, y: 23 },
-      control: { bend: -0.2, skew: 0.5 },
+      origin: { x: 69.21, y: 41.17 },
+      end: { x: 74.27, y: 36.16 },
+      control: { bend: 0.119, skew: 0.96 },
       gap: 24,
       minRadius: 3,
       maxRadius: 7,
@@ -95,17 +90,12 @@ const INITIAL_QUOTES: QuoteEntry[] = [
     },
   },
   {
-    id: "q3",
     text: "I don't sound as confident as others.",
-    position: {
-      left: "clamp(64%, 71vw, 71%)",
-      top: "clamp(40%, 44vh, 47%)",
-      width: "clamp(220px, 21vw, 310px)",
-    },
+    box: { left: 71.4, top: 44.1, width: 21.4 },
     delay: 0.4,
     trail: {
-      origin: { x: 52, y: 34 },
-      end: { x: 70, y: 41 },
+      origin: { x: 65.5, y: 54.67 },
+      end: { x: 71.9, y: 55.04 },
       control: { bend: 0.22, skew: 0.5 },
       gap: 24,
       minRadius: 3,
@@ -116,19 +106,14 @@ const INITIAL_QUOTES: QuoteEntry[] = [
     },
   },
   {
-    id: "q4",
     text: "I know the topic, but I can't explain it well.",
-    position: {
-      left: "clamp(58%, 66vw, 66%)",
-      top: "clamp(59%, 64vh, 67%)",
-      width: "clamp(240px, 25vw, 360px)",
-    },
+    box: { left: 66.4, top: 65.3, width: 24.9 },
     emphasis: true,
     delay: 0.55,
     trail: {
-      origin: { x: 44, y: 52 },
-      end: { x: 65, y: 60 },
-      control: { bend: -0.25, skew: 0.5 },
+      origin: { x: 58.43, y: 71.79 },
+      end: { x: 66.53, y: 77.64 },
+      control: { bend: 0.287, skew: 0.82 },
       gap: 26,
       minRadius: 3,
       maxRadius: 8,
@@ -139,593 +124,868 @@ const INITIAL_QUOTES: QuoteEntry[] = [
   },
 ];
 
-// ── formatting helpers ─────────────────────────────────────────────────
+/* -------------------------------------------------------------------------- */
+/*  Small helpers                                                             */
+/* -------------------------------------------------------------------------- */
 
-function round(n: number, dp = 1) {
-  const f = 10 ** dp;
-  return Math.round(n * f) / f;
+const clamp = (n: number, lo: number, hi: number) =>
+  Math.min(hi, Math.max(lo, n));
+const round = (n: number, d = 2) => Math.round(n * 10 ** d) / 10 ** d;
+const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
+
+/**
+ * control (bend, skew)  ->  point, in stage %.
+ * All maths is done in PIXELS so "perpendicular" is really perpendicular on a
+ * 9:4 stage, then converted back to %.
+ */
+function controlPoint(
+  o: Pt,
+  e: Pt,
+  bend: number,
+  skew: number,
+  w: number,
+  h: number,
+  sign: 1 | -1,
+): Pt {
+  if (!w || !h) return o;
+  const ox = (o.x / 100) * w;
+  const oy = (o.y / 100) * h;
+  const dx = (e.x / 100) * w - ox;
+  const dy = (e.y / 100) * h - oy;
+  const len = Math.hypot(dx, dy);
+  if (len < 1e-6) return o;
+  const nx = -dy / len;
+  const ny = dx / len;
+  const px = ox + skew * dx + sign * bend * len * nx;
+  const py = oy + skew * dy + sign * bend * len * ny;
+  return { x: (px / w) * 100, y: (py / h) * 100 };
 }
 
-/** Emits the QUOTES array in EXACTLY the shape quote-cards.tsx expects —
- *  copy this and paste it directly over the existing `const QUOTES = ...`. */
-function serializeQuotes(quotes: QuoteEntry[]) {
-  const body = quotes
+/** point (stage %)  ->  control { bend, skew }. Exact inverse of the above. */
+function solveControl(
+  o: Pt,
+  e: Pt,
+  p: Pt,
+  w: number,
+  h: number,
+  sign: 1 | -1,
+): { bend: number; skew: number } {
+  const ox = (o.x / 100) * w;
+  const oy = (o.y / 100) * h;
+  const dx = (e.x / 100) * w - ox;
+  const dy = (e.y / 100) * h - oy;
+  const len = Math.hypot(dx, dy);
+  if (len < 1e-6) return { bend: 0, skew: 0 };
+  const rx = (p.x / 100) * w - ox;
+  const ry = (p.y / 100) * h - oy;
+  const skew = (rx * dx + ry * dy) / (len * len);
+  const bend = (sign * (rx * -dy + ry * dx)) / (len * len);
+  return { bend, skew };
+}
+
+function toSource(items: Quote[]): string {
+  const p = (n: number, d = 2) => String(round(n, d));
+  const body = items
     .map((q) => {
       const t = q.trail;
-      return `  {
-    text: ${JSON.stringify(q.text)},
-    position: {
-      left: ${JSON.stringify(q.position.left)},
-      top: ${JSON.stringify(q.position.top)},
-      width: ${JSON.stringify(q.position.width)},
-    },${q.emphasis ? "\n    emphasis: true," : ""}
-    delay: ${q.delay},
-    trail: {
-      origin: { x: ${round(t.origin.x, 2)}, y: ${round(t.origin.y, 2)} },
-      end: { x: ${round(t.end.x, 2)}, y: ${round(t.end.y, 2)} },
-      control: { bend: ${round(t.control.bend, 3)}, skew: ${round(t.control.skew ?? 0.5, 2)} },
-      gap: ${round(t.gap, 0)},
-      minRadius: ${round(t.minRadius ?? 3, 1)},
-      maxRadius: ${round(t.maxRadius ?? 8, 1)},
-      minOpacity: ${round(t.minOpacity ?? 0.2, 2)},
-      maxOpacity: ${round(t.maxOpacity ?? 0.85, 2)},
-      delay: ${round(t.delay ?? 0, 2)},
-    },
-  }`;
+      return [
+        `  {`,
+        `    text: ${JSON.stringify(q.text)},`,
+        `    box: { left: ${p(q.box.left, 1)}, top: ${p(q.box.top, 1)}, width: ${p(q.box.width, 1)} },`,
+        q.emphasis ? `    emphasis: true,` : null,
+        `    delay: ${p(q.delay)},`,
+        `    trail: {`,
+        `      origin: { x: ${p(t.origin.x)}, y: ${p(t.origin.y)} },`,
+        `      end: { x: ${p(t.end.x)}, y: ${p(t.end.y)} },`,
+        `      control: { bend: ${p(t.control.bend, 3)}, skew: ${p(t.control.skew, 3)} },`,
+        `      gap: ${p(t.gap)},`,
+        `      minRadius: ${p(t.minRadius)},`,
+        `      maxRadius: ${p(t.maxRadius)},`,
+        `      minOpacity: ${p(t.minOpacity)},`,
+        `      maxOpacity: ${p(t.maxOpacity)},`,
+        `      delay: ${p(t.delay)},`,
+        `    },`,
+        `  },`,
+      ]
+        .filter(Boolean)
+        .join("\n");
     })
-    .join(",\n");
-
-  return `const QUOTES = [\n${body},\n];`;
+    .join("\n");
+  return `const QUOTES: Quote[] = [\n${body}\n];\n`;
 }
 
-// ── draggable handle (works in stage-percent coords) ────────────────────
+/* -------------------------------------------------------------------------- */
+/*  Page                                                                      */
+/* -------------------------------------------------------------------------- */
 
-function DragHandle({
-  pointPct,
-  stageWidth,
-  stageHeight,
-  color,
-  shape,
-  label,
-  onChangePct,
-}: {
-  pointPct: Point;
-  stageWidth: number;
-  stageHeight: number;
-  color: string;
-  shape: "circle" | "diamond" | "triangle";
-  label: string;
-  onChangePct: (p: Point) => void;
-}) {
-  const draggingRef = useRef(false);
+const HANDLE_STYLE: Record<
+  Handle,
+  { label: string; bg: string; title: string }
+> = {
+  origin: { label: "O", bg: "#38bdf8", title: "Origin" },
+  control: { label: "C", bg: "#fbbf24", title: "Control" },
+  end: { label: "E", bg: "#f472b6", title: "End" },
+};
 
-  const handlePointerMove = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
-      if (!draggingRef.current) return;
-      const stage = (
-        e.currentTarget.parentElement as HTMLElement
-      ).getBoundingClientRect();
-      const x = ((e.clientX - stage.left) / stage.width) * 100;
-      const y = ((e.clientY - stage.top) / stage.height) * 100;
-      onChangePct({
-        x: Math.max(-20, Math.min(120, round(x, 2))),
-        y: Math.max(-20, Math.min(120, round(y, 2))),
+function Calibrator() {
+  const [items, setItems] = useState<Quote[]>(() => clone(DEFAULTS));
+  const [loaded, setLoaded] = useState(false);
+  const [sel, setSel] = useState(0);
+  const [active, setActive] = useState<Active>("control");
+
+  const [showGrid, setShowGrid] = useState(false);
+  const [showShade, setShowShade] = useState(true);
+  const [showGuide, setShowGuide] = useState(true);
+  const [solo, setSolo] = useState(false);
+  const [flip, setFlip] = useState(false);
+  const [replay, setReplay] = useState(0);
+  const [copied, setCopied] = useState(false);
+
+  const sign: 1 | -1 = flip ? -1 : 1;
+
+  const stageRef = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState({ w: 0, h: 0 });
+
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
+
+  const drag = useRef<null | {
+    i: number;
+    kind: Handle | "box" | "width";
+    ox: number;
+    oy: number;
+  }>(null);
+
+  /* ---------- persistence ---------- */
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as { items?: Quote[]; flip?: boolean };
+        if (
+          Array.isArray(parsed.items) &&
+          parsed.items.length === DEFAULTS.length
+        ) {
+          setItems(parsed.items);
+          if (typeof parsed.flip === "boolean") setFlip(parsed.flip);
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+    setLoaded(true);
+  }, []);
+
+  useEffect(() => {
+    if (!loaded) return;
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ items, flip }));
+    } catch {
+      /* ignore */
+    }
+  }, [items, flip, loaded]);
+
+  /* ---------- measure the stage ---------- */
+  useEffect(() => {
+    const el = stageRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => {
+      const r = entry.contentRect;
+      setSize({ w: r.width, h: r.height });
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  /* Same px scaling QuoteCards applies to the trail dots. */
+  const k = useMemo(
+    () => Math.min(1.25, Math.max(0.6, size.w / REF_STAGE_WIDTH || 1)),
+    [size.w],
+  );
+
+  const trails = useMemo(
+    () =>
+      items.map((q) => ({
+        ...q.trail,
+        gap: q.trail.gap * k,
+        minRadius: q.trail.minRadius * k,
+        maxRadius: q.trail.maxRadius * k,
+      })),
+    [items, k],
+  );
+
+  /* ---------- editing ---------- */
+  const patchItem = useCallback(
+    (i: number, fn: (q: Quote) => Quote) =>
+      setItems((prev) => prev.map((q, j) => (j === i ? fn(q) : q))),
+    [],
+  );
+
+  const setHandle = useCallback(
+    (i: number, kind: Handle, p: Pt) => {
+      const pt = { x: clamp(p.x, 0, 100), y: clamp(p.y, 0, 100) };
+      patchItem(i, (q) => {
+        const t = q.trail;
+        if (kind === "origin") return { ...q, trail: { ...t, origin: pt } };
+        if (kind === "end") return { ...q, trail: { ...t, end: pt } };
+        if (!size.w) return q;
+        const c = solveControl(t.origin, t.end, pt, size.w, size.h, sign);
+        return { ...q, trail: { ...t, control: { ...t.control, ...c } } };
       });
     },
-    [onChangePct],
+    [patchItem, size.w, size.h, sign],
   );
 
-  const px = (pointPct.x / 100) * stageWidth;
-  const py = (pointPct.y / 100) * stageHeight;
-
-  const shapeStyle: React.CSSProperties =
-    shape === "diamond"
-      ? { borderRadius: "3px", transform: "rotate(45deg) scale(0.72)" }
-      : shape === "triangle"
-        ? {
-            width: 0,
-            height: 0,
-            background: "transparent",
-            borderLeft: "9px solid transparent",
-            borderRight: "9px solid transparent",
-            borderBottom: `16px solid ${color}`,
-            boxShadow: "none",
-          }
-        : { borderRadius: "9999px" };
-
-  return (
-    <div
-      role="button"
-      aria-label={label}
-      onPointerDown={(e) => {
-        draggingRef.current = true;
-        (e.target as HTMLElement).setPointerCapture(e.pointerId);
-      }}
-      onPointerUp={(e) => {
-        draggingRef.current = false;
-        (e.target as HTMLElement).releasePointerCapture(e.pointerId);
-      }}
-      onPointerMove={handlePointerMove}
-      style={{
-        position: "absolute",
-        left: px,
-        top: py,
-        transform: "translate(-50%, -50%)",
-        width: 20,
-        height: 20,
-        cursor: "grab",
-        touchAction: "none",
-        zIndex: 30,
-      }}
-      className="group"
-    >
-      <div
-        style={{
-          width: shape === "triangle" ? 0 : "100%",
-          height: shape === "triangle" ? 0 : "100%",
-          background: shape === "triangle" ? undefined : color,
-          boxShadow:
-            shape === "triangle"
-              ? undefined
-              : "0 0 0 2px rgba(255,255,255,0.95), 0 2px 6px rgba(0,0,0,0.5)",
-          ...shapeStyle,
-        }}
-      />
-      <span
-        style={{
-          position: "absolute",
-          top: -22,
-          left: "50%",
-          transform: "translateX(-50%)",
-          fontSize: 10,
-          fontFamily: "monospace",
-          color: "#fff",
-          background: "rgba(0,0,0,0.75)",
-          padding: "1px 5px",
-          borderRadius: 4,
-          whiteSpace: "nowrap",
-          pointerEvents: "none",
-          opacity: 0,
-        }}
-        className="group-hover:opacity-100"
-      >
-        {label}
-      </span>
-    </div>
-  );
-}
-
-// ── compact bottom-bar slider ────────────────────────────────────────────
-
-function BarSlider({
-  label,
-  value,
-  min,
-  max,
-  step,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  step: number;
-  onChange: (v: number) => void;
-}) {
-  return (
-    <label
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 2,
-        minWidth: 108,
-      }}
-    >
-      <span
-        style={{
-          fontSize: 10,
-          fontFamily: "monospace",
-          color: "#999",
-          display: "flex",
-          justifyContent: "space-between",
-        }}
-      >
-        <span>{label}</span>
-        <span style={{ color: "#d97757" }}>{value}</span>
-      </span>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(e) => onChange(parseFloat(e.target.value))}
-        style={{ width: "100%", accentColor: "#d97757" }}
-      />
-    </label>
-  );
-}
-
-// ── main page ───────────────────────────────────────────────────────────
-
-export default function CalibratorPage() {
-  const [quotes, setQuotes] = useState<QuoteEntry[]>(INITIAL_QUOTES);
-  const [activeId, setActiveId] = useState(quotes[0].id);
-  const [copied, setCopied] = useState(false);
-  const { ref: stageRef, size } = useStageSize<HTMLDivElement>();
-
-  const active = quotes.find((q) => q.id === activeId)!;
-
-  const updateActiveTrail = useCallback(
-    (patch: Partial<ThoughtTrailConfig>) => {
-      setQuotes((prev) =>
-        prev.map((q) =>
-          q.id === activeId ? { ...q, trail: { ...q.trail, ...patch } } : q,
-        ),
-      );
-    },
-    [activeId],
+  const cur = items[sel];
+  const ctrl = useMemo(
+    () =>
+      controlPoint(
+        cur.trail.origin,
+        cur.trail.end,
+        cur.trail.control.bend,
+        cur.trail.control.skew,
+        size.w,
+        size.h,
+        sign,
+      ),
+    [cur, size.w, size.h, sign],
   );
 
-  // The curvature handle drags an ABSOLUTE control point in stage-percent
-  // space; we immediately convert it back to {bend, skew} so the stored
-  // config never carries a redundant raw point — dragging IS editing
-  // bend/skew, just via direct manipulation instead of two sliders.
-  const updateControlPointPct = useCallback(
-    (p: Point) => {
-      setQuotes((prev) =>
-        prev.map((q) => {
-          if (q.id !== activeId) return q;
-          const { bend, skew } = controlPointToBendSkew(
-            q.trail.origin,
-            q.trail.end,
-            p,
-          );
-          return { ...q, trail: { ...q.trail, control: { bend, skew } } };
-        }),
-      );
-    },
-    [activeId],
-  );
-
-  const exportText = useMemo(() => serializeQuotes(quotes), [quotes]);
-
-  const handleCopy = async () => {
-    await navigator.clipboard.writeText(exportText);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+  const handlePos: Record<Handle, Pt> = {
+    origin: cur.trail.origin,
+    control: ctrl,
+    end: cur.trail.end,
   };
 
-  const controlPointPct = getAbsoluteControlPoint(active.trail);
+  /* ---------- pointer plumbing ---------- */
+  const pctFromEvent = (e: React.PointerEvent): Pt => {
+    const r = stageRef.current!.getBoundingClientRect();
+    return {
+      x: ((e.clientX - r.left) / r.width) * 100,
+      y: ((e.clientY - r.top) / r.height) * 100,
+    };
+  };
 
-  // quick readout of how many circles the current gap produces, using the
-  // same reference-width scaling the real ThoughtTrail uses, so the number
-  // shown here matches what's actually on screen.
-  const circleCount = useMemo(() => {
-    if (!size.width) return 0;
-    const scale = size.width / 1400;
-    const origin = {
-      x: (active.trail.origin.x / 100) * size.width,
-      y: (active.trail.origin.y / 100) * size.height,
+  const startHandleDrag = (e: React.PointerEvent, kind: Handle) => {
+    e.stopPropagation();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    drag.current = { i: sel, kind, ox: 0, oy: 0 };
+    setActive(kind);
+  };
+
+  const startBoxDrag = (e: React.PointerEvent, i: number) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    const p = pctFromEvent(e);
+    const b = itemsRef.current[i].box;
+    drag.current = { i, kind: "box", ox: p.x - b.left, oy: p.y - b.top };
+    setSel(i);
+    setActive("box");
+  };
+
+  const startWidthDrag = (e: React.PointerEvent, i: number) => {
+    e.stopPropagation();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    drag.current = { i, kind: "width", ox: 0, oy: 0 };
+  };
+
+  const onMove = (e: React.PointerEvent) => {
+    const d = drag.current;
+    if (!d) return;
+    const p = pctFromEvent(e);
+    if (d.kind === "box") {
+      patchItem(d.i, (q) => ({
+        ...q,
+        box: {
+          ...q.box,
+          left: clamp(p.x - d.ox, 0, 100 - q.box.width),
+          top: clamp(p.y - d.oy, 0, 100),
+        },
+      }));
+    } else if (d.kind === "width") {
+      patchItem(d.i, (q) => ({
+        ...q,
+        box: { ...q.box, width: clamp(p.x - q.box.left, 5, 100 - q.box.left) },
+      }));
+    } else {
+      setHandle(d.i, d.kind, p);
+    }
+  };
+
+  const endDrag = () => {
+    drag.current = null;
+  };
+
+  /* ---------- keyboard nudge ---------- */
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
+      const dirs: Record<string, [number, number]> = {
+        ArrowLeft: [-1, 0],
+        ArrowRight: [1, 0],
+        ArrowUp: [0, -1],
+        ArrowDown: [0, 1],
+      };
+      const dir = dirs[e.key];
+      if (!dir) return;
+      e.preventDefault();
+      const step = e.shiftKey ? 1 : 0.1;
+      const q = itemsRef.current[sel];
+      if (active === "box") {
+        patchItem(sel, (it) => ({
+          ...it,
+          box: {
+            ...it.box,
+            left: clamp(it.box.left + dir[0] * step, 0, 100 - it.box.width),
+            top: clamp(it.box.top + dir[1] * step, 0, 100),
+          },
+        }));
+        return;
+      }
+      const from: Pt =
+        active === "origin"
+          ? q.trail.origin
+          : active === "end"
+            ? q.trail.end
+            : controlPoint(
+                q.trail.origin,
+                q.trail.end,
+                q.trail.control.bend,
+                q.trail.control.skew,
+                size.w,
+                size.h,
+                sign,
+              );
+      setHandle(sel, active, {
+        x: from.x + dir[0] * step,
+        y: from.y + dir[1] * step,
+      });
     };
-    const end = {
-      x: (active.trail.end.x / 100) * size.width,
-      y: (active.trail.end.y / 100) * size.height,
-    };
-    const dist = Math.hypot(end.x - origin.x, end.y - origin.y);
-    const gapPx = active.trail.gap * scale;
-    const steps = Math.max(1, Math.round(dist / gapPx));
-    return Math.max(1, steps - 1) + 1;
-  }, [active.trail, size.width, size.height]);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [sel, active, patchItem, setHandle, size.w, size.h, sign]);
+
+  /* ---------- panel field helpers ---------- */
+  const upTrail = (patch: Partial<ThoughtTrailConfig>) =>
+    patchItem(sel, (q) => ({ ...q, trail: { ...q.trail, ...patch } }));
+  const upBox = (patch: Partial<Quote["box"]>) =>
+    patchItem(sel, (q) => ({ ...q, box: { ...q.box, ...patch } }));
+
+  const code = useMemo(() => toSource(items), [items]);
+
+  const copyCode = async () => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* clipboard blocked: user can select the textarea manually */
+    }
+  };
+
+  const resetOne = () => patchItem(sel, () => clone(DEFAULTS[sel]));
+  const resetAll = () => setItems(clone(DEFAULTS));
+
+  const visibleTrails = solo ? [sel] : items.map((_, i) => i);
+
+  /* ---------------------------------------------------------------------- */
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        height: "100vh",
-        background: "#0d0d0d",
-        color: "#fff",
-      }}
-    >
-      {/* ── Stage: full width, exactly production's markup ── */}
-      <div style={{ flex: 1, overflow: "auto", padding: "20px 20px 0" }}>
-        <div
-          ref={stageRef}
-          style={{
-            position: "relative",
-            width: "100%",
-            height: "82vh",
-            minHeight: 560,
-            maxHeight: 860,
-            margin: "0 auto",
-            overflow: "hidden",
-          }}
-        >
-          <Image
-            src="/assets/problem_bg.webp"
-            alt=""
-            fill
-            className="object-cover object-[center_10%]"
-            sizes="100vw"
-            priority
-          />
-          <div
-            className="absolute inset-0"
-            style={{
-              background:
-                "linear-gradient(to right, rgba(19,19,19,1) 0%, rgba(19,19,19,0.98) 34%, rgba(19,19,19,0.82) 46%, rgba(19,19,19,0.35) 58%, rgba(19,19,19,0.15) 70%, rgba(19,19,19,0.32) 100%)",
-            }}
-          />
-          <div
-            className="absolute inset-0"
-            style={{
-              background:
-                "linear-gradient(to bottom, rgba(19,19,19,0.45) 0%, rgba(19,19,19,0) 16%, rgba(19,19,19,0) 80%, rgba(19,19,19,0.55) 100%)",
-            }}
-          />
-
-          {/* trails + bubbles — exactly the production components */}
-          {quotes.map((q) => (
-            <ThoughtTrail
-              key={`trail-${q.id}`}
-              config={q.trail}
-              stageWidth={size.width}
-              stageHeight={size.height}
-              className="text-primary"
-            />
-          ))}
-
-          {quotes.map((q, i) => (
-            <motion.div
-              key={q.id}
-              initial={false}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              onClick={() => setActiveId(q.id)}
-              style={{
-                ...q.position,
-                outline:
-                  q.id === activeId
-                    ? "1.5px dashed #d97757"
-                    : "1.5px dashed transparent",
-                outlineOffset: 4,
-                cursor: "pointer",
-              }}
-              className={[
-                "absolute box-border p-4 lg:p-5 xl:p-6 rounded-2xl glass-panel",
-                q.emphasis ? "glass-panel-glow" : "",
-              ].join(" ")}
-            >
-              <span
-                style={{
-                  position: "absolute",
-                  top: -9,
-                  left: -9,
-                  width: 18,
-                  height: 18,
-                  borderRadius: "9999px",
-                  background: q.id === activeId ? "#d97757" : "#333",
-                  color: "#fff",
-                  fontSize: 10,
-                  fontFamily: "monospace",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                {i + 1}
-              </span>
-              <p className="font-sans text-[14px] lg:text-[15px] xl:text-[17px] leading-snug text-on-surface">
-                <span className="text-primary font-display text-2xl align-top mr-1 leading-none">
-                  &ldquo;
-                </span>
-                {q.text}
-                <span className="text-primary font-display text-2xl align-bottom ml-1 leading-none">
-                  &rdquo;
-                </span>
-              </p>
-            </motion.div>
-          ))}
-
-          {/* Curve preview line (very faint) so the arc shape is visible
-              even between/beyond the rendered circles. */}
-          {size.width > 0 && (
-            <svg
-              className="absolute inset-0 pointer-events-none overflow-visible"
-              width={size.width}
-              height={size.height}
-            >
-              <path
-                d={(() => {
-                  const o = {
-                    x: (active.trail.origin.x / 100) * size.width,
-                    y: (active.trail.origin.y / 100) * size.height,
-                  };
-                  const e = {
-                    x: (active.trail.end.x / 100) * size.width,
-                    y: (active.trail.end.y / 100) * size.height,
-                  };
-                  const c = {
-                    x: (controlPointPct.x / 100) * size.width,
-                    y: (controlPointPct.y / 100) * size.height,
-                  };
-                  return `M ${o.x} ${o.y} Q ${c.x} ${c.y} ${e.x} ${e.y}`;
-                })()}
-                fill="none"
-                stroke="#d97757"
-                strokeOpacity={0.35}
-                strokeWidth={1.5}
-                strokeDasharray="4 4"
-              />
-            </svg>
-          )}
-
-          {/* drag handles for the active quote only */}
-          {size.width > 0 && (
-            <>
-              <DragHandle
-                pointPct={active.trail.origin}
-                stageWidth={size.width}
-                stageHeight={size.height}
-                color="#4ade80"
-                shape="circle"
-                label="origin"
-                onChangePct={(p) => updateActiveTrail({ origin: p })}
-              />
-              <DragHandle
-                pointPct={controlPointPct}
-                stageWidth={size.width}
-                stageHeight={size.height}
-                color="#60a5fa"
-                shape="triangle"
-                label="curvature"
-                onChangePct={updateControlPointPct}
-              />
-              <DragHandle
-                pointPct={active.trail.end}
-                stageWidth={size.width}
-                stageHeight={size.height}
-                color="#d97757"
-                shape="diamond"
-                label="end"
-                onChangePct={(p) => updateActiveTrail({ end: p })}
-              />
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* ── Bottom bar: quote switcher, density/size controls, export ── */}
-      <div
-        style={{
-          flexShrink: 0,
-          borderTop: "1px solid #2a2a2a",
-          padding: "12px 20px",
-          display: "flex",
-          alignItems: "center",
-          gap: 20,
-          flexWrap: "wrap",
-        }}
-      >
-        {/* quote switcher */}
-        <div style={{ display: "flex", gap: 6 }}>
-          {quotes.map((q, i) => (
+    <main className="min-h-screen bg-surface text-on-surface font-sans">
+      {/* Toolbar */}
+      <div className="sticky top-0 z-50 flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-white/10 bg-black/80 px-4 py-2.5 text-xs backdrop-blur">
+        <div className="flex items-center gap-1.5">
+          {items.map((q, i) => (
             <button
-              key={q.id}
-              onClick={() => setActiveId(q.id)}
+              key={q.text}
+              onClick={() => setSel(i)}
               title={q.text}
-              style={{
-                width: 26,
-                height: 26,
-                borderRadius: "9999px",
-                border:
-                  q.id === activeId
-                    ? "1.5px solid #d97757"
-                    : "1.5px solid #333",
-                background:
-                  q.id === activeId ? "rgba(217,119,87,0.15)" : "transparent",
-                color: "#fff",
-                fontSize: 11,
-                fontFamily: "monospace",
-                cursor: "pointer",
-              }}
+              className={[
+                "h-7 w-7 rounded-md border text-[13px] font-semibold",
+                i === sel
+                  ? "border-amber-300 bg-amber-300 text-black"
+                  : "border-white/20 text-white/70 hover:border-white/50",
+              ].join(" ")}
             >
               {i + 1}
             </button>
           ))}
         </div>
 
-        <div style={{ width: 1, height: 32, background: "#2a2a2a" }} />
+        <Toggle label="Grid (10%)" v={showGrid} set={setShowGrid} />
+        <Toggle label="Photo shading" v={showShade} set={setShowShade} />
+        <Toggle label="Guide curve" v={showGuide} set={setShowGuide} />
+        <Toggle label="Solo trail" v={solo} set={setSolo} />
+        <Toggle label="Flip bend sign" v={flip} set={setFlip} />
 
-        {/* legend for the three handle types — the actual curvature
-            control is the drag handle on the stage above; these sliders
-            are only for density/size, which aren't naturally "a point" */}
-        <div
-          style={{
-            display: "flex",
-            gap: 6,
-            fontSize: 10,
-            fontFamily: "monospace",
-            color: "#888",
-          }}
-        >
-          <span style={{ color: "#4ade80" }}>&#9679; origin</span>
-          <span style={{ color: "#60a5fa" }}>&#9650; curvature</span>
-          <span style={{ color: "#d97757" }}>&#9670; end</span>
-        </div>
-
-        <div style={{ width: 1, height: 32, background: "#2a2a2a" }} />
-
-        <BarSlider
-          label="gap (px @1400)"
-          value={active.trail.gap}
-          min={8}
-          max={60}
-          step={1}
-          onChange={(v) => updateActiveTrail({ gap: v })}
-        />
-        <BarSlider
-          label="min radius"
-          value={active.trail.minRadius ?? 3}
-          min={1}
-          max={12}
-          step={0.5}
-          onChange={(v) => updateActiveTrail({ minRadius: v })}
-        />
-        <BarSlider
-          label="max radius"
-          value={active.trail.maxRadius ?? 8}
-          min={1}
-          max={16}
-          step={0.5}
-          onChange={(v) => updateActiveTrail({ maxRadius: v })}
-        />
-        <BarSlider
-          label="min opacity"
-          value={active.trail.minOpacity ?? 0.2}
-          min={0}
-          max={1}
-          step={0.02}
-          onChange={(v) => updateActiveTrail({ minOpacity: v })}
-        />
-        <BarSlider
-          label="max opacity"
-          value={active.trail.maxOpacity ?? 0.85}
-          min={0}
-          max={1}
-          step={0.02}
-          onChange={(v) => updateActiveTrail({ maxOpacity: v })}
-        />
-
-        <div style={{ fontSize: 10, fontFamily: "monospace", color: "#666" }}>
-          {circleCount} circles
-        </div>
-
-        <div
-          style={{
-            marginLeft: "auto",
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-          }}
-        >
-          <button
-            onClick={handleCopy}
-            style={{
-              fontSize: 11,
-              padding: "8px 14px",
-              borderRadius: 6,
-              border: "1px solid #d97757",
-              background: copied ? "#d97757" : "transparent",
-              color: "#fff",
-              cursor: "pointer",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {copied ? "Copied!" : "Copy QUOTES array"}
-          </button>
+        <div className="ml-auto flex items-center gap-2">
+          <Btn onClick={() => setReplay((n) => n + 1)}>Replay trails</Btn>
+          <Btn onClick={resetOne}>Reset #{sel + 1}</Btn>
+          <Btn onClick={resetAll}>Reset all</Btn>
+          <Btn onClick={copyCode} primary>
+            {copied ? "Copied" : "Copy code"}
+          </Btn>
         </div>
       </div>
-    </div>
+
+      <p className="px-4 pt-3 text-xs text-white/50">
+        Drag <b className="text-sky-300">O</b> (origin),{" "}
+        <b className="text-amber-300">C</b> (control) and{" "}
+        <b className="text-pink-300">E</b> (end). Drag a bubble to move it, drag
+        its right edge to resize. Arrow keys nudge the active handle (Shift =
+        1%).
+      </p>
+
+      {/* Stage — identical to the poster in problem-section.tsx */}
+      <div className="px-4 py-3">
+        <div
+          ref={stageRef}
+          className="relative mx-auto w-full max-w-[1680px] aspect-[9/4] overflow-hidden select-none touch-none"
+        >
+          <Image
+            src="/assets/problem_bg.webp"
+            alt=""
+            fill
+            className="object-cover object-[center_10%]"
+            sizes="(min-width: 1680px) 1680px, 100vw"
+            priority
+          />
+
+          {showShade && (
+            <>
+              <div
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  background:
+                    "linear-gradient(to right, rgba(19,19,19,1) 0%, rgba(19,19,19,0.98) 34%, rgba(19,19,19,0.82) 46%, rgba(19,19,19,0.35) 58%, rgba(19,19,19,0.15) 70%, rgba(19,19,19,0.32) 100%)",
+                }}
+              />
+              <div
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  background:
+                    "linear-gradient(to bottom, rgba(19,19,19,0.45) 0%, rgba(19,19,19,0) 16%, rgba(19,19,19,0) 80%, rgba(19,19,19,0.55) 100%)",
+                }}
+              />
+            </>
+          )}
+
+          {showGrid && (
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                backgroundImage:
+                  "linear-gradient(to right, rgba(255,255,255,.14) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,.14) 1px, transparent 1px)",
+                backgroundSize: "10% 10%",
+              }}
+            />
+          )}
+
+          {/* Same container QuoteCards uses, so cqw resolves against the stage */}
+          <div
+            className="absolute inset-0"
+            style={{ containerType: "inline-size" }}
+            onPointerMove={onMove}
+            onPointerUp={endDrag}
+            onPointerCancel={endDrag}
+          >
+            {/* Real trails, driven by live state */}
+            <div className="absolute inset-0 pointer-events-none z-[15]">
+              {visibleTrails.map((i) => (
+                <ThoughtTrail
+                  key={`trail-${i}-${replay}`}
+                  config={trails[i]}
+                  stageWidth={size.w}
+                  stageHeight={size.h}
+                  className="text-primary"
+                />
+              ))}
+            </div>
+
+            {/* Bubbles */}
+            {items.map((q, i) => {
+              const isSel = i === sel;
+              return (
+                <div
+                  key={q.text}
+                  onPointerDown={(e) => startBoxDrag(e, i)}
+                  style={{
+                    left: `${q.box.left}%`,
+                    top: `${q.box.top}%`,
+                    width: `${q.box.width}%`,
+                    padding: "1.15cqw",
+                    borderRadius: "1.2cqw",
+                    fontSize: "clamp(11px, 1.23cqw, 20px)",
+                  }}
+                  className={[
+                    "absolute box-border glass-panel z-10 cursor-move",
+                    q.emphasis ? "glass-panel-glow" : "",
+                    isSel
+                      ? "outline outline-2 outline-amber-300/80"
+                      : "opacity-70",
+                  ].join(" ")}
+                >
+                  <p className="font-sans leading-snug text-on-surface">
+                    <span
+                      aria-hidden
+                      className="text-primary font-display align-top mr-1 leading-none"
+                      style={{ fontSize: "1.6em" }}
+                    >
+                      &ldquo;
+                    </span>
+                    {q.text}
+                    <span
+                      aria-hidden
+                      className="text-primary font-display align-bottom ml-1 leading-none"
+                      style={{ fontSize: "1.6em" }}
+                    >
+                      &rdquo;
+                    </span>
+                  </p>
+                  {isSel && (
+                    <div
+                      onPointerDown={(e) => startWidthDrag(e, i)}
+                      title="Drag to resize"
+                      className="absolute right-0 top-0 h-full w-2 cursor-ew-resize rounded-r bg-amber-300/50 hover:bg-amber-300"
+                    />
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Guide: dashed control polygon + the quadratic it implies */}
+            {showGuide && size.w > 0 && (
+              <svg
+                className="absolute inset-0 pointer-events-none z-20"
+                width={size.w}
+                height={size.h}
+                viewBox={`0 0 ${size.w} ${size.h}`}
+              >
+                {(() => {
+                  const px = (p: Pt) => ({
+                    x: (p.x / 100) * size.w,
+                    y: (p.y / 100) * size.h,
+                  });
+                  const o = px(cur.trail.origin);
+                  const c = px(ctrl);
+                  const e = px(cur.trail.end);
+                  return (
+                    <>
+                      <path
+                        d={`M${o.x},${o.y} L${c.x},${c.y} L${e.x},${e.y}`}
+                        fill="none"
+                        stroke="rgba(255,255,255,.35)"
+                        strokeWidth={1}
+                        strokeDasharray="4 4"
+                      />
+                      <path
+                        d={`M${o.x},${o.y} Q${c.x},${c.y} ${e.x},${e.y}`}
+                        fill="none"
+                        stroke="#fbbf24"
+                        strokeWidth={1.5}
+                      />
+                    </>
+                  );
+                })()}
+              </svg>
+            )}
+
+            {/* Handles */}
+            {(Object.keys(HANDLE_STYLE) as Handle[]).map((kind) => {
+              const s = HANDLE_STYLE[kind];
+              const pos = handlePos[kind];
+              const isActive = active === kind;
+              return (
+                <div
+                  key={kind}
+                  title={`${s.title} (${round(pos.x)}, ${round(pos.y)})`}
+                  onPointerDown={(e) => startHandleDrag(e, kind)}
+                  style={{
+                    left: `${pos.x}%`,
+                    top: `${pos.y}%`,
+                    background: s.bg,
+                  }}
+                  className={[
+                    "absolute z-30 flex h-[22px] w-[22px] -translate-x-1/2 -translate-y-1/2 cursor-grab items-center justify-center text-[11px] font-bold text-black shadow-[0_0_0_2px_rgba(0,0,0,.6)] active:cursor-grabbing",
+                    kind === "control" ? "rounded-[5px]" : "rounded-full",
+                    isActive ? "ring-2 ring-white" : "",
+                  ].join(" ")}
+                >
+                  {s.label}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Numbers + output */}
+      <div className="mx-auto grid max-w-[1680px] gap-6 px-4 pb-16 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <section className="space-y-5">
+          <h2 className="text-sm font-semibold">
+            Quote {sel + 1}{" "}
+            <span className="font-normal text-white/50">— {cur.text}</span>
+          </h2>
+
+          <Group title="Origin (%)">
+            <Num
+              label="x"
+              value={cur.trail.origin.x}
+              onChange={(v) =>
+                upTrail({ origin: { ...cur.trail.origin, x: v } })
+              }
+            />
+            <Num
+              label="y"
+              value={cur.trail.origin.y}
+              onChange={(v) =>
+                upTrail({ origin: { ...cur.trail.origin, y: v } })
+              }
+            />
+          </Group>
+
+          <Group title="End (%)">
+            <Num
+              label="x"
+              value={cur.trail.end.x}
+              onChange={(v) => upTrail({ end: { ...cur.trail.end, x: v } })}
+            />
+            <Num
+              label="y"
+              value={cur.trail.end.y}
+              onChange={(v) => upTrail({ end: { ...cur.trail.end, y: v } })}
+            />
+          </Group>
+
+          <Group title="Control">
+            <Num
+              label="bend"
+              step={0.01}
+              value={cur.trail.control.bend}
+              onChange={(v) =>
+                upTrail({ control: { ...cur.trail.control, bend: v } })
+              }
+            />
+            <Num
+              label="skew"
+              step={0.01}
+              value={cur.trail.control.skew}
+              onChange={(v) =>
+                upTrail({ control: { ...cur.trail.control, skew: v } })
+              }
+            />
+            <p className="col-span-2 text-[11px] text-white/40">
+              C handle sits at ({round(ctrl.x)}, {round(ctrl.y)}) % of the
+              stage. Moving O or E keeps bend/skew, so the curve keeps its
+              shape.
+            </p>
+          </Group>
+
+          <Group title="Dots (px at 1440-wide stage)">
+            <Num
+              label="gap"
+              step={1}
+              value={cur.trail.gap}
+              onChange={(v) => upTrail({ gap: v })}
+            />
+            <Num
+              label="delay (s)"
+              step={0.05}
+              value={cur.trail.delay}
+              onChange={(v) => upTrail({ delay: v })}
+            />
+            <Num
+              label="min radius"
+              step={0.5}
+              value={cur.trail.minRadius}
+              onChange={(v) => upTrail({ minRadius: v })}
+            />
+            <Num
+              label="max radius"
+              step={0.5}
+              value={cur.trail.maxRadius}
+              onChange={(v) => upTrail({ maxRadius: v })}
+            />
+            <Num
+              label="min opacity"
+              step={0.05}
+              value={cur.trail.minOpacity}
+              onChange={(v) => upTrail({ minOpacity: v })}
+            />
+            <Num
+              label="max opacity"
+              step={0.05}
+              value={cur.trail.maxOpacity}
+              onChange={(v) => upTrail({ maxOpacity: v })}
+            />
+          </Group>
+
+          <Group title="Bubble (% of stage)">
+            <Num
+              label="left"
+              value={cur.box.left}
+              onChange={(v) => upBox({ left: v })}
+            />
+            <Num
+              label="top"
+              value={cur.box.top}
+              onChange={(v) => upBox({ top: v })}
+            />
+            <Num
+              label="width"
+              value={cur.box.width}
+              onChange={(v) => upBox({ width: v })}
+            />
+            <Num
+              label="reveal delay (s)"
+              step={0.05}
+              value={cur.delay}
+              onChange={(v) => patchItem(sel, (q) => ({ ...q, delay: v }))}
+            />
+          </Group>
+        </section>
+
+        <section className="space-y-2">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold">Code</h2>
+            <span className="text-[11px] text-white/40">
+              Replace the QUOTES array in quote-cards.tsx
+            </span>
+          </div>
+          <textarea
+            readOnly
+            value={code}
+            onFocus={(e) => e.currentTarget.select()}
+            spellCheck={false}
+            className="h-[560px] w-full resize-y rounded-md border border-white/10 bg-black/50 p-3 font-mono text-[12px] leading-relaxed text-white/85 outline-none focus:border-amber-300/60"
+          />
+        </section>
+      </div>
+    </main>
   );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Tiny UI bits                                                              */
+/* -------------------------------------------------------------------------- */
+
+function Toggle({
+  label,
+  v,
+  set,
+}: {
+  label: string;
+  v: boolean;
+  set: (b: boolean) => void;
+}) {
+  return (
+    <label className="flex cursor-pointer items-center gap-1.5 text-white/70">
+      <input
+        type="checkbox"
+        checked={v}
+        onChange={(e) => set(e.target.checked)}
+        className="accent-amber-300"
+      />
+      {label}
+    </label>
+  );
+}
+
+function Btn({
+  children,
+  onClick,
+  primary,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  primary?: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={[
+        "rounded-md border px-3 py-1.5 text-xs font-medium",
+        primary
+          ? "border-amber-300 bg-amber-300 text-black hover:bg-amber-200"
+          : "border-white/20 text-white/80 hover:border-white/50",
+      ].join(" ")}
+    >
+      {children}
+    </button>
+  );
+}
+
+function Group({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <fieldset className="rounded-md border border-white/10 p-3">
+      <legend className="px-1 text-[11px] text-white/50">{title}</legend>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">{children}</div>
+    </fieldset>
+  );
+}
+
+const fmt = (n: number) => String(round(n, 3));
+
+/** Number input that lets you type freely and steps with ArrowUp/Down. */
+function Num({
+  label,
+  value,
+  onChange,
+  step = 0.1,
+}: {
+  label: string;
+  value: number;
+  onChange: (n: number) => void;
+  step?: number;
+}) {
+  const [text, setText] = useState(fmt(value));
+  const focused = useRef(false);
+
+  useEffect(() => {
+    if (!focused.current) setText(fmt(value));
+  }, [value]);
+
+  return (
+    <label className="flex flex-col gap-1 text-[11px] text-white/50">
+      {label}
+      <input
+        inputMode="decimal"
+        value={text}
+        onFocus={() => (focused.current = true)}
+        onBlur={() => {
+          focused.current = false;
+          setText(fmt(value));
+        }}
+        onChange={(e) => {
+          setText(e.target.value);
+          const n = parseFloat(e.target.value);
+          if (Number.isFinite(n)) onChange(n);
+        }}
+        onKeyDown={(e) => {
+          if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+          e.preventDefault();
+          const d =
+            (e.key === "ArrowUp" ? 1 : -1) * (e.shiftKey ? step * 10 : step);
+          const next = round(value + d, 3);
+          setText(fmt(next));
+          onChange(next);
+        }}
+        className="rounded border border-white/15 bg-black/40 px-2 py-1 text-[13px] text-white outline-none focus:border-amber-300/70"
+      />
+    </label>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+
+export default function CalibratorPage() {
+  // Dev tool only. Delete these two lines to expose it in production.
+  if (process.env.NODE_ENV === "production") notFound();
+  return <Calibrator />;
 }
